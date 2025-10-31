@@ -75,7 +75,7 @@ class InferenceTableLocation(TraceLocationBase):
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> "InferenceTableLocation":
-        return cls(full_table_name=d["full_table_name"])
+        return cls(d["full_table_name"])
 
 
 @dataclass
