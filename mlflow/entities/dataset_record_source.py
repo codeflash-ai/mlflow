@@ -123,4 +123,10 @@ class DatasetRecordSource(_MlflowObject):
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "DatasetRecordSource":
-        return cls(**data)
+        try:
+            return cls(
+                source_type=data["source_type"],
+                source_data=data.get("source_data"),
+            )
+        except KeyError:
+            return cls(**data)
