@@ -15,6 +15,17 @@ import numpy as np
 
 from mlflow.exceptions import MlflowException
 
+_field_type_mapping = {
+    bool: "boolean",
+    int: "long",  # int is mapped to long to support 64-bit integers
+    builtins.float: "float",
+    str: "string",
+    bytes: "binary",
+    dt.date: "datetime",
+}
+
+_union_types = (Union, UnionType)
+
 ARRAY_TYPE = "array"
 OBJECT_TYPE = "object"
 MAP_TYPE = "map"
@@ -1359,15 +1370,8 @@ class ParamSchema:
 
 
 def _map_field_type(field):
-    field_type_mapping = {
-        bool: "boolean",
-        int: "long",  # int is mapped to long to support 64-bit integers
-        builtins.float: "float",
-        str: "string",
-        bytes: "binary",
-        dt.date: "datetime",
-    }
-    return field_type_mapping.get(field)
+    # Single dictionary lookup
+    return _field_type_mapping.get(field)
 
 
 def _get_dataclass_annotations(cls) -> dict[str, Any]:
@@ -1393,7 +1397,8 @@ def _is_union(t: type) -> bool:
     """
     Check if the field type is either `Union[X, Y]` or `X | Y`.
     """
-    return get_origin(t) in [Union, UnionType]
+    # tuple lookup is slightly more efficient and avoids list construction
+    return get_origin(t) in _union_types
 
 
 def convert_dataclass_to_schema(dataclass):
@@ -1476,8 +1481,11 @@ def _convert_dataclass_to_nested_object(dataclass):
     Convert a nested dataclass to an Object type used within a ColSpec.
     """
     properties = []
-    for field_name, field_type in dataclass.__annotations__.items():
-        properties.append(_convert_field_to_property(field_name, field_type))
+    _annotations_items = dataclass.__annotations__.items()
+    # Use local var for the function to avoid repeated global lookups
+    _convert_field_to_property_local = _convert_field_to_property
+    for field_name, field_type in _annotations_items:
+        properties.append(_convert_field_to_property_local(field_name, field_type))
     return Object(properties=properties)
 
 
@@ -1489,13 +1497,28 @@ def _convert_field_to_property(field_name, field_type):
 
     is_optional = False
     effective_type = field_type
+    _get_args = get_args  # Local vars for hot calls
+    _get_origin = get_origin
 
-    if _is_union(field_type) and type(None) in get_args(field_type):
-        is_optional = True
-        effective_type = next(t for t in get_args(field_type) if t is not type(None))
+    args = None
 
-    if get_origin(effective_type) == list:
-        list_type = get_args(effective_type)[0]
+    # Avoid duplicated get_args() calls
+    if _is_union(field_type):
+        args = _get_args(field_type)
+        # Use set for efficient membership test and short-circuit logic flatten
+        if type(None) in args:
+            is_optional = True
+            # Use generator expression with next but avoid repeated get_args
+            # Fast search for one element
+            for t in args:
+                if t is not type(None):
+                    effective_type = t
+                    break
+
+    origin = _get_origin(effective_type)
+    if origin == list:
+        # get_args is not expensive, but only call once; local constant for index
+        list_type = _get_args(effective_type)[0]
         return Property(
             name=field_name,
             dtype=Array(dtype=_map_field_type(list_type)),
