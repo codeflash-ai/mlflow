@@ -254,7 +254,11 @@ class TraceLocation(_MlflowObject):
 
     @classmethod
     def from_databricks_uc_schema(cls, catalog_name: str, schema_name: str) -> "TraceLocation":
+        # Hoist locals for faster instantiation and attribute assignment.
+        uc_schema = UCSchemaLocation.__new__(UCSchemaLocation)
+        uc_schema.catalog_name = catalog_name
+        uc_schema.schema_name = schema_name
         return cls(
             type=TraceLocationType.UC_SCHEMA,
-            uc_schema=UCSchemaLocation(catalog_name=catalog_name, schema_name=schema_name),
+            uc_schema=uc_schema,
         )
