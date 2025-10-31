@@ -41,7 +41,7 @@ class MlflowExperimentLocation(TraceLocationBase):
 
     @classmethod
     def from_proto(cls, proto) -> "MlflowExperimentLocation":
-        return cls(experiment_id=proto.experiment_id)
+        return cls(proto.experiment_id)
 
     def to_dict(self) -> dict[str, Any]:
         return {"experiment_id": self.experiment_id}
