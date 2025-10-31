@@ -967,29 +967,37 @@ class Schema:
                 "Creating Schema with empty inputs is not allowed."
             )
 
-        if not (all(x.name is None for x in inputs) or all(x.name is not None for x in inputs)):
+        # Compute name status of all inputs in a single pass for efficiency
+        names = [x.name for x in inputs]
+        all_named = all(name is not None for name in names)
+        all_unnamed = all(name is None for name in names)
+        if not (all_named or all_unnamed):
             raise MlflowException(
                 "Creating Schema with a combination of named and unnamed inputs "
-                f"is not allowed. Got input names {[x.name for x in inputs]}"
+                f"is not allowed. Got input names {names}"
             )
+
+        # Check input types in a single scan for both conditions to reduce iteration cost
+        first_type = type(inputs[0])
+        valid_type = all(isinstance(x, first_type) for x in inputs)
         if not (
-            all(isinstance(x, TensorSpec) for x in inputs)
-            or all(isinstance(x, ColSpec) for x in inputs)
+            (first_type is TensorSpec and valid_type)
+            or (first_type is ColSpec and valid_type)
         ):
             raise MlflowException(
                 "Creating Schema with a combination of {0} and {1} is not supported. "
                 f"Please choose one of {ColSpec.__name__} or {TensorSpec.__name__}"
             )
-        if (
-            all(isinstance(x, TensorSpec) for x in inputs)
-            and len(inputs) > 1
-            and any(x.name is None for x in inputs)
-        ):
+
+        # For multiple TensorSpec, ensure names are present (scan once)
+        if first_type is TensorSpec and len(inputs) > 1 and any(x.name is None for x in inputs):
             raise MlflowException(
                 "Creating Schema with multiple unnamed TensorSpecs is not supported. "
                 "Please provide names for each TensorSpec."
             )
-        if all(x.name is None for x in inputs) and any(x.required is False for x in inputs):
+
+        # For all unnamed, check required values efficiently
+        if all_unnamed and any(x.required is False for x in inputs):
             raise MlflowException(
                 "Creating Schema with unnamed optional inputs is not supported. "
                 "Please name all inputs or make all inputs required."
@@ -1096,14 +1104,17 @@ class Schema:
     def from_json(cls, json_str: str):
         """Deserialize from a json string."""
 
-        def read_input(x: dict[str, Any]):
-            return (
-                TensorSpec.from_json_dict(**x)
-                if x["type"] == "tensor"
-                else ColSpec.from_json_dict(**x)
-            )
+        # Micro-optimization: parse+dispatch types using local vars to avoid scope lookups
+        obj_list = json.loads(json_str)
+        tensor_type = "tensor"
+        tensor_from_json = TensorSpec.from_json_dict
+        col_from_json = ColSpec.from_json_dict
 
-        return cls([read_input(x) for x in json.loads(json_str)])
+        # Use list comprehension outside of a nested function for less function call overhead
+        return cls([
+            tensor_from_json(**x) if x["type"] == tensor_type else col_from_json(**x)
+            for x in obj_list
+        ])
 
     def __eq__(self, other) -> bool:
         if isinstance(other, Schema):
