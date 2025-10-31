@@ -107,12 +107,21 @@ class DatasetRecordSource(_MlflowObject):
 
     @classmethod
     def from_proto(cls, proto: ProtoDatasetRecordSource) -> "DatasetRecordSource":
-        source_data = json.loads(proto.source_data) if proto.HasField("source_data") else {}
-        source_type = (
-            DatasetRecordSourceType.from_proto(proto.source_type)
-            if proto.HasField("source_type")
-            else None
-        )
+        # Optimization: retrieve HasField and attribute values once
+        has_source_data = proto.HasField("source_data")
+        has_source_type = proto.HasField("source_type")
+        # Avoid attribute lookups inside json.loads / from_proto call
+        if has_source_data:
+            source_data_json = proto.source_data
+            source_data = json.loads(source_data_json)
+        else:
+            source_data = {}
+
+        if has_source_type:
+            source_type_val = proto.source_type
+            source_type = DatasetRecordSourceType.from_proto(source_type_val)
+        else:
+            source_type = None
 
         return cls(source_type=source_type, source_data=source_data)
 
