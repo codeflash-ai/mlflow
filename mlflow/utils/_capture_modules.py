@@ -23,11 +23,20 @@ from mlflow.utils.requirements_utils import (
 
 
 def _get_top_level_module(full_module_name):
-    return full_module_name.split(".")[0]
+    dot_index = full_module_name.find(".")
+    if dot_index == -1:
+        return full_module_name
+    return full_module_name[:dot_index]
 
 
 def _get_second_level_module(full_module_name):
-    return ".".join(full_module_name.split(".")[:2])
+    first_dot = full_module_name.find(".")
+    if first_dot == -1:
+        return full_module_name
+    second_dot = full_module_name.find(".", first_dot + 1)
+    if second_dot == -1:
+        return full_module_name
+    return full_module_name[:second_dot]
 
 
 class _CaptureImportedModules:
@@ -99,12 +108,12 @@ class _CaptureImportedModules:
             return
 
         top_level_module = _get_top_level_module(full_module_name)
-        second_level_module = _get_second_level_module(full_module_name)
 
         if top_level_module == "databricks":
             # Multiple packages populate the `databricks` module namespace on Databricks;
             # to avoid bundling extraneous Databricks packages into model dependencies, we
             # scope each module to its relevant package
+            second_level_module = _get_second_level_module(full_module_name)
             if second_level_module in DATABRICKS_MODULES_TO_PACKAGES:
                 self.imported_modules.add(second_level_module)
                 return
@@ -115,7 +124,8 @@ class _CaptureImportedModules:
                     return
 
         # special casing for mlflow extras since they may not be required by default
-        if top_level_module == "mlflow":
+        elif top_level_module == "mlflow":
+            second_level_module = _get_second_level_module(full_module_name)
             if second_level_module in MLFLOW_MODULES_TO_PACKAGES:
                 self.imported_modules.add(second_level_module)
                 return
