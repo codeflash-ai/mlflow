@@ -284,15 +284,17 @@ def _deliver_webhook_impl(
 
     # Get only webhooks subscribed to this specific event (filtered at DB level when possible)
     webhooks = _get_cached_webhooks_by_event(store, event, ttl_seconds)
-    for webhook in webhooks:
-        if webhook.status.is_active():
-            _webhook_delivery_executor.submit(
-                _send_webhook_with_error_handling,
-                webhook,
-                payload,
-                event,
-                session,
-            )
+    
+    active_webhooks = [webhook for webhook in webhooks if webhook.status.is_active()]
+    submit = _webhook_delivery_executor.submit
+    for webhook in active_webhooks:
+        submit(
+            _send_webhook_with_error_handling,
+            webhook,
+            payload,
+            event,
+            session,
+        )
 
 
 def deliver_webhook(
