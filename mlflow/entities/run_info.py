@@ -153,21 +153,25 @@ class RunInfo(_MlflowObject):
 
     @classmethod
     def from_proto(cls, proto):
-        end_time = proto.end_time
+        # Localize proto attribute lookups for performance
+        pr = proto
+        end_time = pr.end_time
         # The proto2 default scalar value of zero indicates that the run's end time is absent.
         # An absent end time is represented with a NoneType in the `RunInfo` class
         if end_time == 0:
             end_time = None
+        # Cache function lookup
+        status_str = RunStatus.to_string
         return cls(
-            run_id=proto.run_id,
-            run_name=proto.run_name,
-            experiment_id=proto.experiment_id,
-            user_id=proto.user_id,
-            status=RunStatus.to_string(proto.status),
-            start_time=proto.start_time,
-            end_time=end_time,
-            lifecycle_stage=proto.lifecycle_stage,
-            artifact_uri=proto.artifact_uri,
+            pr.run_id,
+            pr.experiment_id,
+            pr.user_id,
+            status_str(pr.status),
+            pr.start_time,
+            end_time,
+            pr.lifecycle_stage,
+            pr.artifact_uri,
+            pr.run_name,
         )
 
     @classmethod
