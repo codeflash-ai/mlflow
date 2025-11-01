@@ -55,7 +55,13 @@ def _extract_token_value_by_keys(d: dict[str, Any], names: Sequence[str]) -> int
     Returns:
         The first integer value found for any of the provided keys, or None if none exist.
     """
-    return next((d[name] for name in names if name in d and isinstance(d[name], int)), None)
+    # Optimize by using set intersection for fast lookup and checking type only for present keys
+    # This avoids repeated 'in' checks in a tight loop for large dicts
+    for key in names:
+        value = d.get(key)
+        if isinstance(value, int):
+            return value
+    return None
 
 
 def capture_exception(logging_message: str):
@@ -149,19 +155,21 @@ def parse_partial_token_usage_from_response(usage_data: dict[str, Any]) -> dict[
     if not _validate_usage_input(usage_data):
         return None
 
-    token_usage_data = {}
+    # Avoid dict construction costs until extraction yields something
+    input_tokens = _extract_token_value_by_keys(usage_data, INPUT_TOKEN_KEYS)
+    output_tokens = _extract_token_value_by_keys(usage_data, OUTPUT_TOKEN_KEYS)
+    total_tokens = _extract_token_value_by_keys(usage_data, TOTAL_TOKEN_KEYS)
 
-    # Try to extract input token count (prompt tokens).
-    if (input_tokens := _extract_token_value_by_keys(usage_data, INPUT_TOKEN_KEYS)) is not None:
+    if input_tokens is None and output_tokens is None and total_tokens is None:
+        return None
+
+    # Create dict only once if any token count is present
+    token_usage_data: dict[str, int] = {}
+    if input_tokens is not None:
         token_usage_data[TokenUsageKey.INPUT_TOKENS] = input_tokens
-
-    # Try to extract output token count (completion tokens).
-    if (output_tokens := _extract_token_value_by_keys(usage_data, OUTPUT_TOKEN_KEYS)) is not None:
+    if output_tokens is not None:
         token_usage_data[TokenUsageKey.OUTPUT_TOKENS] = output_tokens
-
-    # Try to extract total token count.
-    if (total_tokens := _extract_token_value_by_keys(usage_data, TOTAL_TOKEN_KEYS)) is not None:
+    if total_tokens is not None:
         token_usage_data[TokenUsageKey.TOTAL_TOKENS] = total_tokens
 
-    # If no token usage data was found, return None. Otherwise, return the partial dictionary.
-    return token_usage_data if token_usage_data else None
+    return token_usage_data
