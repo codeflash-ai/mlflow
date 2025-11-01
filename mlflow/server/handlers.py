@@ -701,7 +701,7 @@ def _get_request_message(request_message, flask_request=request, schema=None):
 
 def _response_with_file_attachment_headers(file_path, response):
     mime_type = _guess_mime_type(file_path)
-    filename = pathlib.Path(file_path).name
+    filename = os.path.basename(file_path)
     response.mimetype = mime_type
     content_disposition_header_name = "Content-Disposition"
     if content_disposition_header_name not in response.headers:
