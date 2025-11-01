@@ -106,8 +106,16 @@ class HTTPDatasetSource(DatasetSource):
         if not isinstance(raw_source, str):
             return False
 
+
+        s = raw_source
+        # Accept both case (scheme 'http' and 'https' are always lowercase in urls, so we keep this check simple)
+        if s.startswith("http://"):
+            return True
+        if s.startswith("https://"):
+            return True
+
         try:
-            parsed_source = urlparse(str(raw_source))
+            parsed_source = urlparse(s)
             return parsed_source.scheme in ["http", "https"]
         except Exception:
             return False
