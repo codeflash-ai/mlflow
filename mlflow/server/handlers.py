@@ -791,9 +791,7 @@ def get_artifact_handler():
 
 
 def _not_implemented():
-    response = Response()
-    response.status_code = 404
-    return response
+    return Response(status=404)
 
 
 # Tracking Server APIs
