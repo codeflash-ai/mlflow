@@ -180,24 +180,20 @@ def convert_litellm_to_mlflow_uri(litellm_model: str) -> str:
             error_code=INVALID_PARAMETER_VALUE,
         )
 
-    if "/" not in litellm_model:
+    provider, sep, model = litellm_model.partition("/")
+    if not sep:
         raise MlflowException(
             f"Invalid LiteLLM model format: '{litellm_model}'. "
             "Expected format: 'provider/model' (e.g., 'openai/gpt-4')",
             error_code=INVALID_PARAMETER_VALUE,
         )
-
-    try:
-        provider, model = litellm_model.split("/", 1)
-        if not provider or not model:
-            raise MlflowException(
-                f"Invalid LiteLLM model format: '{litellm_model}'. "
-                "Both provider and model name must be non-empty",
-                error_code=INVALID_PARAMETER_VALUE,
-            )
-        return f"{provider}:/{model}"
-    except ValueError as e:
-        raise MlflowException(f"Failed to convert LiteLLM format to MLflow URI: {e}")
+    if not provider or not model:
+        raise MlflowException(
+            f"Invalid LiteLLM model format: '{litellm_model}'. "
+            "Both provider and model name must be non-empty",
+            error_code=INVALID_PARAMETER_VALUE,
+        )
+    return f"{provider}:/{model}"
 
 
 def trace_to_dspy_example(trace: Trace, judge: Judge) -> Optional["dspy.Example"]:
