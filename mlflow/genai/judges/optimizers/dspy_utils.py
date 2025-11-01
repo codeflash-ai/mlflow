@@ -131,7 +131,7 @@ def _sanitize_assessment_name(name: str) -> str:
     """
     Sanitize a name by converting it to lowercase and stripping whitespace.
     """
-    return name.lower().strip()
+    return name.strip().lower()
 
 
 def convert_mlflow_uri_to_litellm(model_uri: str) -> str:
