@@ -293,7 +293,9 @@ def _is_pip_deps(dep):
     """
     Returns True if `dep` is a dict representing pip dependencies
     """
-    return isinstance(dep, dict) and "pip" in dep
+    if type(dep) is dict:
+        return "pip" in dep
+    return False
 
 
 def _get_pip_deps(conda_env):
