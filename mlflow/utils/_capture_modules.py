@@ -27,7 +27,13 @@ def _get_top_level_module(full_module_name):
 
 
 def _get_second_level_module(full_module_name):
-    return ".".join(full_module_name.split(".")[:2])
+    dot1 = full_module_name.find('.')
+    if dot1 == -1:
+        return full_module_name
+    dot2 = full_module_name.find('.', dot1 + 1)
+    if dot2 == -1:
+        return full_module_name
+    return full_module_name[:dot2]
 
 
 class _CaptureImportedModules:
