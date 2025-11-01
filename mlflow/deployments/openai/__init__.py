@@ -10,6 +10,13 @@ from mlflow.utils.openai_utils import (
 )
 from mlflow.utils.rest_utils import augmented_raise_for_status
 
+_OPENAI_ENV_KEYS = (
+    _OpenAIEnvVar.OPENAI_API_TYPE.value,
+    _OpenAIEnvVar.OPENAI_API_VERSION.value,
+    _OpenAIEnvVar.OPENAI_API_BASE.value,
+    _OpenAIEnvVar.OPENAI_DEPLOYMENT_NAME.value,
+)
+
 
 class OpenAIDeploymentClient(BaseDeploymentClient):
     """
@@ -220,11 +227,16 @@ def _get_api_config_without_openai_dep() -> _OpenAIApiConfig:
     """
     Gets the parameters and configuration of the OpenAI API connected to.
     """
-    api_type = os.getenv(_OpenAIEnvVar.OPENAI_API_TYPE.value)
-    api_version = os.getenv(_OpenAIEnvVar.OPENAI_API_VERSION.value)
-    api_base = os.getenv(_OpenAIEnvVar.OPENAI_API_BASE.value, None)
-    deployment_id = os.getenv(_OpenAIEnvVar.OPENAI_DEPLOYMENT_NAME.value, None)
-    if api_type in ("azure", "azure_ad", "azuread"):
+    # Batch getenvs to minimize lookup/attribute overhead
+    api_type, api_version, api_base, deployment_id = (
+        os.environ.get(_OPENAI_ENV_KEYS[0], None),
+        os.environ.get(_OPENAI_ENV_KEYS[1], None),
+        os.environ.get(_OPENAI_ENV_KEYS[2], None),
+        os.environ.get(_OPENAI_ENV_KEYS[3], None),
+    )
+
+    # String matching: fast-path with set for 'in' (prevents tuple scan)
+    if api_type in {"azure", "azure_ad", "azuread"}:
         batch_size = 16
         max_tokens_per_minute = 60_000
     else:
