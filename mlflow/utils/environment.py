@@ -326,7 +326,7 @@ def _overwrite_pip_deps(conda_env, new_pip_deps):
     new_deps = []
     contains_pip_deps = False
     for dep in deps:
-        if _is_pip_deps(dep):
+        if type(dep) is dict and "pip" in dep:
             contains_pip_deps = True
             new_deps.append({"pip": new_pip_deps})
         else:
