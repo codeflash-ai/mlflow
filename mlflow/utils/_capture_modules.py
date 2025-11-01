@@ -23,7 +23,7 @@ from mlflow.utils.requirements_utils import (
 
 
 def _get_top_level_module(full_module_name):
-    return full_module_name.split(".")[0]
+    return full_module_name.partition('.')[0]
 
 
 def _get_second_level_module(full_module_name):
