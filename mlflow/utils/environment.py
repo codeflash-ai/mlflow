@@ -115,7 +115,11 @@ class _PythonEnv:
         return build_dependencies
 
     def to_dict(self):
-        return self.__dict__.copy()
+        return {
+            "python": self.python,
+            "build_dependencies": self.build_dependencies,
+            "dependencies": self.dependencies,
+        }
 
     @classmethod
     def from_dict(cls, dct):
