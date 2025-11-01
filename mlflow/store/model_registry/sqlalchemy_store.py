@@ -149,11 +149,11 @@ class SqlAlchemyStore(AbstractStore):
         load the following registered model attributes
         when fetching a registered model: ``registered_model_tags``.
         """
-        # Use a subquery load rather than a joined load in order to minimize the memory overhead
-        # of the eager loading procedure. For more information about relationship loading
-        # techniques, see https://docs.sqlalchemy.org/en/13/orm/
-        # loading_relationships.html#relationship-loading-techniques
-        return [sqlalchemy.orm.subqueryload(SqlRegisteredModel.registered_model_tags)]
+        if not hasattr(SqlAlchemyStore._get_eager_registered_model_query_options, "_cached_result"):
+            SqlAlchemyStore._get_eager_registered_model_query_options._cached_result = [
+                sqlalchemy.orm.subqueryload(SqlRegisteredModel.registered_model_tags)
+            ]
+        return SqlAlchemyStore._get_eager_registered_model_query_options._cached_result
 
     @staticmethod
     def _get_eager_model_version_query_options():
@@ -220,10 +220,11 @@ class SqlAlchemyStore(AbstractStore):
         """
         _validate_model_name(name)
         query_options = cls._get_eager_registered_model_query_options() if eager else []
+        name_attr = SqlRegisteredModel.name  # cache attribute lookups
         rms = (
             session.query(SqlRegisteredModel)
             .options(*query_options)
-            .filter(SqlRegisteredModel.name == name)
+            .filter(name_attr == name)
             .all()
         )
 

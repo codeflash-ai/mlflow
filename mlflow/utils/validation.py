@@ -501,7 +501,11 @@ def _validate_list_param(param_name: str, param_value: Any, allow_none: bool = F
 
 
 def _validate_model_name(model_name):
-    if model_name is None or model_name == "":
+    # Use direct falsy check, covers None and empty string, preserving behavior.
+    if not model_name:
+        # Import missing_value locally to avoid global import cost if called frequently.
+        from mlflow.utils.validation import missing_value
+
         raise MlflowException(missing_value("name"), error_code=INVALID_PARAMETER_VALUE)
 
 
