@@ -168,6 +168,42 @@ def trace(
             ignored with a warning.
     """
 
+
+    # Avoid function call overhead for the common decorator usage
+    if func is not None:
+        # Inline the decorator logic
+        # Check if the function is a classmethod or staticmethod
+        is_classmethod = isinstance(func, classmethod)
+        is_staticmethod = isinstance(func, staticmethod)
+
+        # Extract the original function if it's a descriptor
+        original_fn = func.__func__ if is_classmethod or is_staticmethod else func
+
+        # Apply the appropriate wrapper to the original function
+        if inspect.isgeneratorfunction(original_fn) or inspect.isasyncgenfunction(original_fn):
+            wrapped = _wrap_generator(
+                original_fn,
+                name,
+                span_type,
+                attributes,
+                output_reducer,
+                trace_destination,
+            )
+        else:
+            if output_reducer is not None:
+                raise MlflowException.invalid_parameter_value(
+                    "The output_reducer argument is only supported for generator functions."
+                )
+            wrapped = _wrap_function(original_fn, name, span_type, attributes, trace_destination)
+
+        # If the original was a descriptor, wrap the result back as the same type of descriptor
+        if is_classmethod:
+            return classmethod(wrapped)
+        elif is_staticmethod:
+            return staticmethod(wrapped)
+        else:
+            return wrapped
+
     def decorator(fn):
         # Check if the function is a classmethod or staticmethod
         is_classmethod = isinstance(fn, classmethod)
@@ -201,7 +237,7 @@ def trace(
         else:
             return wrapped
 
-    return decorator(func) if func else decorator
+    return decorator
 
 
 def _wrap_function(
