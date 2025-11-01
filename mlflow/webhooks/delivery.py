@@ -203,14 +203,17 @@ def _get_or_create_webhook_cache(ttl_seconds: int) -> TTLCache[WebhookEvent, lis
     """
     global _webhook_cache
 
-    if _webhook_cache is None:
-        with _webhook_cache_lock:
-            # Check again in case another thread just created it
-            if _webhook_cache is None:
-                # Max size of 1000 should be enough for event types
-                _webhook_cache = TTLCache(maxsize=1000, ttl=ttl_seconds)
+    # Fast-path: avoid lock if already created
+    cache = _webhook_cache
+    if cache is not None:
+        return cache
 
-    return _webhook_cache
+    # Only take lock if cache is still None
+    with _webhook_cache_lock:
+        if _webhook_cache is None:
+            # Max size of 1000 should be enough for event types
+            _webhook_cache = TTLCache(maxsize=1000, ttl=ttl_seconds)
+        return _webhook_cache
 
 
 def _get_cached_webhooks_by_event(
