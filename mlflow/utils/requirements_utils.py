@@ -11,6 +11,7 @@ import re
 import subprocess
 import sys
 import tempfile
+from functools import lru_cache
 from itertools import chain, filterfalse
 from pathlib import Path
 from threading import Timer
@@ -572,7 +573,7 @@ def _get_pinned_requirement(req_str, version=None, module=None):
     req = Requirement(req_str)
     package = req.name
     if version is None:
-        version_raw = _get_installed_version(package, module)
+        version_raw = _get_installed_version_cached(package, module)
         local_version_label = _get_local_version_label(version_raw)
         if local_version_label:
             version = _strip_local_version_label(version_raw)
@@ -701,3 +702,8 @@ def warn_dependency_requirement_mismatches(model_requirements: list[str]):
             "mismatches. Set logging level to DEBUG to see the full traceback."
         )
         _logger.debug("", exc_info=True)
+
+
+@lru_cache(maxsize=32)
+def _get_installed_version_cached(package: str, module: str | None = None) -> str:
+    return _get_installed_version(package, module)
