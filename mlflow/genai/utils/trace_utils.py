@@ -331,6 +331,9 @@ def _is_chat_messages(maybe_messages: Any) -> bool:
 
 
 def _to_dict(obj: Any) -> dict[str, Any]:
+    # Fastest check first: isinstance is faster than hasattr for common types like dict
+    if isinstance(obj, dict):
+        return obj
     if hasattr(obj, "to_dict"):
         return obj.to_dict()
 
