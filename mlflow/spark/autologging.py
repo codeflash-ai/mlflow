@@ -69,11 +69,7 @@ def clear_table_infos():
 
 
 def _get_spark_major_version(sc):
-    spark_version_parts = sc.version.split(".")
-    spark_major_version = None
-    if len(spark_version_parts) > 0:
-        spark_major_version = int(spark_version_parts[0])
-    return spark_major_version
+    return int(sc.version.split(".", 1)[0])
 
 
 def _get_jvm_event_publisher(spark_context):
