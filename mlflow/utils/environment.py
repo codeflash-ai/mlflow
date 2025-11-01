@@ -967,11 +967,16 @@ def _remove_requirements(
     reqs_to_remove: list[Requirement],
     old_reqs: list[Requirement],
 ) -> list[str]:
-    old_reqs_dict = {req.name: str(req) for req in old_reqs}
+    reqs_to_remove_names = {req.name for req in reqs_to_remove}
+    old_reqs_dict = {}
+    for req in old_reqs:
+        if req.name not in reqs_to_remove_names:
+            old_reqs_dict[req.name] = str(req)
+    
+    old_names_set = {req.name for req in old_reqs}
     for req in reqs_to_remove:
-        if req.name not in old_reqs_dict:
+        if req.name not in old_names_set:
             _logger.warning(f'"{req.name}" not found in requirements, ignoring')
-        old_reqs_dict.pop(req.name, None)
     return list(old_reqs_dict.values())
 
 
