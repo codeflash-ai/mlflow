@@ -93,4 +93,4 @@ def rename_payload_keys(payload: dict[str, Any], mapping: dict[str, str]) -> dic
         A new dictionary containing the transformed keys.
 
     """
-    return {mapping.get(k, k): v for k, v in payload.items()}
+    return {mapping[k] if k in mapping else k: v for k, v in payload.items()}
