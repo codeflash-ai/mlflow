@@ -412,10 +412,10 @@ class WebhookTestResult:
     @classmethod
     def from_proto(cls, proto: ProtoWebhookTestResult) -> Self:
         return cls(
-            success=proto.success,
-            response_status=proto.response_status or None,
-            response_body=proto.response_body or None,
-            error_message=proto.error_message or None,
+            proto.success,
+            proto.response_status or None,
+            proto.response_body or None,
+            proto.error_message or None,
         )
 
     def to_proto(self) -> ProtoWebhookTestResult:
