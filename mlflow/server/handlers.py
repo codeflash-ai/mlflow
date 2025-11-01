@@ -2213,7 +2213,13 @@ def _create_model_version():
 
 
 def _is_prompt_request(request_message):
-    return any(tag.key == IS_PROMPT_TAG_KEY for tag in request_message.tags)
+    tags = request_message.tags
+    # Use a generator for fast tag matching, but store IS_PROMPT_TAG_KEY for fast locals lookup
+    key = IS_PROMPT_TAG_KEY
+    for tag in tags:
+        if tag.key == key:
+            return True
+    return False
 
 
 def _is_prompt(name: str) -> bool:
