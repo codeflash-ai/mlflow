@@ -50,7 +50,7 @@ def _merge_tag_lines(existing_tag, new_table_info):
         return new_table_info
     if new_table_info in existing_tag:
         return existing_tag
-    return "\n".join([existing_tag, new_table_info])
+    return f"{existing_tag}\n{new_table_info}"
 
 
 def add_table_info_to_context_provider(path, version, data_format):
