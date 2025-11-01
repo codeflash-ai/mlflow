@@ -310,15 +310,20 @@ def parse_outputs_to_str(value: Any) -> str:
 
 
 def _is_chat_choices(maybe_choices: Any) -> bool:
-    if (
-        not maybe_choices
-        or not isinstance(maybe_choices, list)
-        or not isinstance(maybe_choices[0], dict)
-    ):
+    # Fast-fail as soon as possible, reduce redundant checks
+    if not maybe_choices or not isinstance(maybe_choices, list):
+        return False
+    first = maybe_choices[0]
+    if not isinstance(first, dict):
         return False
 
-    message = maybe_choices[0].get(_MESSAGE_KEY)
-    return _is_chat_messages([message])
+    message = first.get(_MESSAGE_KEY)
+    # Inline the logic for chat messages with single element for performance
+    return (
+        message is not None
+        and isinstance(message, dict)
+        and isinstance(message.get(_CONTENT_KEY), str)
+    )
 
 
 def _is_chat_messages(maybe_messages: Any) -> bool:
