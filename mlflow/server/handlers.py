@@ -304,7 +304,7 @@ class ModelRegistryStoreRegistryWrapper(ModelRegistryStoreRegistry):
         return UcModelRegistryStore(store_uri, tracking_uri)
 
 
-_tracking_store_registry = TrackingStoreRegistryWrapper()
+_tracking_store_registry = TrackingStoreRegistry()
 _model_registry_store_registry = ModelRegistryStoreRegistryWrapper()
 
 
@@ -1183,6 +1183,7 @@ def _get_run():
 
 
 def get_run_impl(request_message):
+    from mlflow.protos.service_pb2 import GetRun
     response_message = GetRun.Response()
     run_id = request_message.run_id or request_message.run_uuid
     response_message.run.MergeFrom(_get_tracking_store().get_run(run_id).to_proto())
