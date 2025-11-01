@@ -269,7 +269,7 @@ class MlflowAg2Logger(BaseLogger):
         input_tokens = usage.prompt_tokens
         output_tokens = usage.completion_tokens
         total_tokens = usage.total_tokens
-        if total_tokens is None and None not in (input_tokens, output_tokens):
+        if total_tokens is None and input_tokens is not None and output_tokens is not None:
             total_tokens = input_tokens + output_tokens
         return {
             TokenUsageKey.INPUT_TOKENS: input_tokens,
