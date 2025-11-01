@@ -113,7 +113,12 @@ def resolve_inputs_from_trace(
     """
     if inputs is None and trace is not None and extract_if_none:
         try:
-            return extract_inputs_from_trace(trace)
+            for span in trace.data.spans:
+                if span.parent_id is None:
+                    if span.inputs is not None:
+                        return span.inputs
+                    return None
+            return None
         except Exception as e:
             _logger.debug(f"Could not extract inputs from trace: {e}")
     return inputs
