@@ -804,14 +804,27 @@ def _deduplicate_requirements(requirements):
 
 
 def _parse_requirement_name(req: str) -> str:
+    if not hasattr(_parse_requirement_name, "_cache"):
+        _parse_requirement_name._cache = {}
+    cache = _parse_requirement_name._cache
+    if req in cache:
+        return cache[req]
     try:
-        return Requirement(req).name
+        name = Requirement(req).name
     except InvalidRequirement:
-        return req
+        name = req
+    cache[req] = name
+    return name
 
 
 def _remove_incompatible_requirements(requirements: list[str]) -> list[str]:
-    req_names = {_parse_requirement_name(req) for req in requirements}
+    # Optimization: precompute parsed requirement names only once per requirements list
+    # Also, reuse the parsed names to avoid repeated calls in filtering.
+    # This speeds up scenarios with large requirements lists and duplicate items.
+    req_name_map = {}
+    for req in requirements:
+        req_name_map[req] = _parse_requirement_name(req)
+    req_names = set(req_name_map.values())
     if "databricks-connect" in req_names and req_names.intersection({"pyspark", "pyspark-connect"}):
         _logger.debug(
             "Found incompatible requirements: 'databricks-connect' with 'pyspark' or "
@@ -820,7 +833,7 @@ def _remove_incompatible_requirements(requirements: list[str]) -> list[str]:
         requirements = [
             req
             for req in requirements
-            if _parse_requirement_name(req) not in ["pyspark", "pyspark-connect"]
+            if req_name_map[req] not in ["pyspark", "pyspark-connect"]
         ]
     return requirements
 
