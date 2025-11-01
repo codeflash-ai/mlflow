@@ -25,7 +25,7 @@ class UserAuthPolicy:
         self._api_scopes = value
 
     def to_dict(self):
-        return {"api_scopes": self.api_scopes}
+        return {"api_scopes": self._api_scopes}
 
 
 class SystemAuthPolicy:
