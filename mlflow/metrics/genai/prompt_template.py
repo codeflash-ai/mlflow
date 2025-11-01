@@ -41,13 +41,19 @@ class PromptTemplate:
     def format(self, **kwargs: Any) -> str:
         safe_kwargs = {k: v for k, v in kwargs.items() if v is not None}
         formatted_strs = []
+        # Cache the keys for fast membership test instead of re-creating dict_keys() on each loop
+        safe_keys = set(safe_kwargs.keys())
+        formatter_parse = string.Formatter().parse
         for template_str in self.template_strs:
-            extracted_variables = [
-                fname for _, fname, _, _ in string.Formatter().parse(template_str) if fname
-            ]
-            if all(item in safe_kwargs.keys() for item in extracted_variables):
+            # Avoid repeated string.Formatter() creation, and precompute parse once
+            extracted_variables = []
+            # Parsing and collecting field names efficiently
+            for _, fname, _, _ in formatter_parse(template_str):
+                if fname:
+                    extracted_variables.append(fname)
+            # Use set.issubset instead of 'all', this is significantly faster for many variables
+            if set(extracted_variables).issubset(safe_keys):
                 formatted_strs.append(template_str.format(**safe_kwargs))
-
         return "".join(formatted_strs)
 
     def partial_fill(self, **kwargs: Any) -> "PromptTemplate":
