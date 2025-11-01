@@ -224,7 +224,6 @@ def process_api_requests(
     # initialize trackers
     retry_queue = queue.Queue()
     status_tracker = StatusTracker()  # single instance to track a collection of variables
-    next_request = None  # variable to hold the next request to call
     context = context or get_prediction_context()
 
     results = []
@@ -243,46 +242,35 @@ def process_api_requests(
     with ThreadPoolExecutor(
         max_workers=max_workers, thread_name_prefix="MlflowLangChainApi"
     ) as executor:
-        while True:
-            # get next request (if one is not already waiting for capacity)
-            if not retry_queue.empty():
-                next_request = retry_queue.get_nowait()
-                _logger.warning(f"Retrying request {next_request.index}: {next_request}")
-            elif req := next(requests_iter, None):
-                # get new request
-                index, converted_chat_request_json = req
-                next_request = APIRequest(
-                    index=index,
-                    lc_model=lc_model,
-                    request_json=converted_chat_request_json,
-                    results=results,
-                    errors=errors,
-                    convert_chat_responses=convert_chat_responses,
-                    did_perform_chat_conversion=did_perform_chat_conversion,
-                    stream=False,
-                    prediction_context=context,
-                    params=params,
-                )
-                status_tracker.start_task()
-            else:
-                next_request = None
+        submitted = 0
+        # Submit all requests as quickly as possible
+        for req in requests_iter:
+            index, converted_chat_request_json = req
+            next_request = APIRequest(
+                index=index,
+                lc_model=lc_model,
+                request_json=converted_chat_request_json,
+                results=results,
+                errors=errors,
+                convert_chat_responses=convert_chat_responses,
+                did_perform_chat_conversion=did_perform_chat_conversion,
+                stream=False,
+                prediction_context=context,
+                params=params,
+            )
+            status_tracker.start_task()
+            executor.submit(
+                next_request.call_api,
+                status_tracker=status_tracker,
+                callback_handlers=callback_handlers,
+            )
+            submitted += 1
 
-            # if enough capacity available, call API
-            if next_request:
-                # call API
-                executor.submit(
-                    next_request.call_api,
-                    status_tracker=status_tracker,
-                    callback_handlers=callback_handlers,
-                )
+        # Wait for all tasks to finish using a more efficient wait loop
+        while status_tracker.num_tasks_in_progress > 0:
+            time.sleep(0.0001)  # Decrease sleep interval for reduced idle
 
-            # if all tasks are finished, break
-            # check next_request to avoid terminating the process
-            # before extra requests need to be processed
-            if status_tracker.num_tasks_in_progress == 0 and next_request is None:
-                break
-
-            time.sleep(0.001)  # avoid busy waiting
+        # after finishing, log final status
 
         # after finishing, log final status
         if status_tracker.num_tasks_failed > 0:
@@ -290,7 +278,9 @@ def process_api_requests(
                 f"{status_tracker.num_tasks_failed} tasks failed. Errors: {errors}"
             )
 
-        return [res for _, res in sorted(results)]
+        # Sorting results for return
+        results.sort()  # Sort in-place to reduce memory footprint and improve cache locality
+        return [res for _, res in results]
 
 
 def process_stream_request(
