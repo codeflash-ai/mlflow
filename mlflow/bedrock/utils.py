@@ -55,7 +55,12 @@ def _extract_token_value_by_keys(d: dict[str, Any], names: Sequence[str]) -> int
     Returns:
         The first integer value found for any of the provided keys, or None if none exist.
     """
-    return next((d[name] for name in names if name in d and isinstance(d[name], int)), None)
+    d_get = d.get
+    for name in names:
+        value = d_get(name, None)
+        if isinstance(value, int):
+            return value
+    return None
 
 
 def capture_exception(logging_message: str):
