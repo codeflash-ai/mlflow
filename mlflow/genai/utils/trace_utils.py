@@ -137,7 +137,11 @@ def resolve_outputs_from_trace(
     """
     if outputs is None and trace is not None and extract_if_none:
         try:
-            return extract_outputs_from_trace(trace)
+            spans = trace.data.spans
+            for span in spans:
+                if span.parent_id is None:
+                    return getattr(span, 'outputs', None)
+            return None
         except Exception as e:
             _logger.debug(f"Could not extract outputs from trace: {e}")
     return outputs
