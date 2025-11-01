@@ -187,7 +187,8 @@ class AssessmentSourceType:
 
     @staticmethod
     def _standardize(source_type: str) -> str:
-        return str(AssessmentSourceType(source_type))
+        # Directly parse/standardize string without constructing object
+        return AssessmentSourceType._parse(source_type)
 
     @classmethod
     def from_proto(cls, proto_source_type) -> str:

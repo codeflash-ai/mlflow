@@ -191,17 +191,18 @@ def extract_expectations_from_trace(
 
     expectation_assessments = trace.search_assessments(type="expectation")
 
-    if validated_source is not None:
-        expectation_assessments = [
-            exp
-            for exp in expectation_assessments
-            if exp.source and exp.source.source_type == validated_source
-        ]
-
-    if not expectation_assessments:
+    # Single-pass generator expression for filtering and dictionary creation
+    result = {
+        exp.name: exp.expectation.value
+        for exp in expectation_assessments
+        if (
+            validated_source is None
+            or (exp.source and exp.source.source_type == validated_source)
+        )
+    }
+    if not result:
         return None
-
-    return {exp.name: exp.expectation.value for exp in expectation_assessments}
+    return result
 
 
 def convert_predict_fn(predict_fn: Callable[..., Any], sample_input: Any) -> Callable[..., Any]:
