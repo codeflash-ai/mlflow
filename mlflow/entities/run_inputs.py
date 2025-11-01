@@ -35,10 +35,10 @@ class RunInputs(_MlflowObject):
     def to_proto(self):
         run_inputs = ProtoRunInputs()
         run_inputs.dataset_inputs.extend(
-            [dataset_input.to_proto() for dataset_input in self.dataset_inputs]
+            dataset_input.to_proto() for dataset_input in self._dataset_inputs
         )
         run_inputs.model_inputs.extend(
-            [model_input.to_proto() for model_input in self.model_inputs]
+            model_input.to_proto() for model_input in self._model_inputs
         )
         return run_inputs
 
