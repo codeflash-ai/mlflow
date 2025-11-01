@@ -31,8 +31,8 @@ class DatasetInput(_MlflowObject):
 
     def to_proto(self):
         dataset_input = ProtoDatasetInput()
-        dataset_input.tags.extend([tag.to_proto() for tag in self.tags])
-        dataset_input.dataset.MergeFrom(self.dataset.to_proto())
+        dataset_input.tags.extend(tag.to_proto() for tag in self._tags)
+        dataset_input.dataset.MergeFrom(self._dataset.to_proto())
         return dataset_input
 
     @classmethod
