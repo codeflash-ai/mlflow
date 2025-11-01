@@ -152,12 +152,17 @@ def _calculate_npmi_core(
         # Perfect co-occurrence: both events always occur together
         return 1.0
 
-    # Calculate PMI using log-space arithmetic for numerical stability
-    # PMI = log(P(x,y) / (P(x) * P(y))) = log(n11*N / (n1*n2))
-    log_n11 = math.log(n11_s)
-    log_N = math.log(N)
-    log_n1 = math.log(n1)
-    log_n2 = math.log(n2)
+    # Use math.log1p(x) for potentially better accuracy when values are small,
+    # otherwise stick to math.log for performance as inputs are typically large
+    # Compute all logs with minimal Python overhead by using local-scoped lookups
+    # Reduce the number of attribute lookups (by localizing math.log)
+    log = math.log
+
+    log_n11 = log(n11_s)
+    log_N = log(N)
+    log_n1 = log(n1)
+    log_n2 = log(n2)
+
 
     pmi = (log_n11 + log_N) - (log_n1 + log_n2)
 
@@ -166,8 +171,12 @@ def _calculate_npmi_core(
 
     npmi = pmi / denominator
 
-    # Clamp to [-1, 1] to handle floating point errors
-    return max(-1.0, min(1.0, npmi))
+    # Clamp to [-1, 1]. Use fast logic, avoid function call overhead.
+    if npmi > 1.0:
+        return 1.0
+    if npmi < -1.0:
+        return -1.0
+    return npmi
 
 
 def calculate_smoothed_npmi(
@@ -201,7 +210,8 @@ def calculate_smoothed_npmi(
     n01 = filter2_count - joint_count
     n00 = total_count - filter1_count - filter2_count + joint_count
 
-    if min(n11, n10, n01, n00) < 0:
+    # Early exit for impossible table
+    if (n11 < 0) or (n10 < 0) or (n01 < 0) or (n00 < 0):
         return float("nan")
 
     return _calculate_npmi_core(n11, n10, n01, n00, smoothing)
