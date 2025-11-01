@@ -401,8 +401,14 @@ def _wrap_generator(
 def _wrap_function_safe(fn: Callable[..., Any], wrapper: Callable[..., Any]) -> Callable[..., Any]:
     wrapped = functools.wraps(fn)(wrapper)
     # Update the signature of the wrapper to match the signature of the original (safely)
+    fn_id = id(fn)
     try:
-        wrapped.__signature__ = inspect.signature(fn)
+        if fn_id in _signature_cache:
+            wrapped.__signature__ = _signature_cache[fn_id]
+        else:
+            sig = inspect.signature(fn)
+            wrapped.__signature__ = sig
+            _signature_cache[fn_id] = sig
     except Exception:
         pass
     # Add unique marker for MLflow trace detection
@@ -805,6 +811,9 @@ def search_traces(
     if return_type is None:
         try:
             import pandas  # noqa: F401
+            
+            # Cache signatures to avoid repeated inspection (which is expensive)
+            _signature_cache: dict[int, inspect.Signature] = {}
 
             return_type = "pandas"
         except ImportError:
