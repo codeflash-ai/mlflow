@@ -99,19 +99,20 @@ class _PythonEnv:
 
     @classmethod
     def current(cls):
+        if not hasattr(cls, "_current_build_deps"):
+            cls._current_build_deps = cls.get_current_build_dependencies()
         return cls(
             python=PYTHON_VERSION,
-            build_dependencies=cls.get_current_build_dependencies(),
+            build_dependencies=list(cls._current_build_deps),
             dependencies=[f"-r {_REQUIREMENTS_FILE_NAME}"],
         )
 
     @staticmethod
     def get_current_build_dependencies():
-        build_dependencies = []
-        for package in _PythonEnv.BUILD_PACKAGES:
+        build_dependencies = [None] * len(_PythonEnv.BUILD_PACKAGES)
+        for idx, package in enumerate(_PythonEnv.BUILD_PACKAGES):
             version = _get_package_version(package)
-            dep = (package + "==" + version) if version else package
-            build_dependencies.append(dep)
+            build_dependencies[idx] = (package + "==" + version) if version else package
         return build_dependencies
 
     def to_dict(self):
