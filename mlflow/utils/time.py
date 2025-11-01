@@ -13,7 +13,9 @@ def conv_longdate_to_str(longdate, local_tz=True):
     date_time = datetime.datetime.fromtimestamp(longdate / 1000.0)
     str_long_date = date_time.strftime("%Y-%m-%d %H:%M:%S")
     if local_tz:
-        tzinfo = datetime.datetime.now().astimezone().tzinfo
+        if not hasattr(conv_longdate_to_str, "_LOCAL_TZINFO"):
+            conv_longdate_to_str._LOCAL_TZINFO = datetime.datetime.now().astimezone().tzinfo
+        tzinfo = conv_longdate_to_str._LOCAL_TZINFO
         if tzinfo:
             str_long_date += " " + tzinfo.tzname(date_time)
 
