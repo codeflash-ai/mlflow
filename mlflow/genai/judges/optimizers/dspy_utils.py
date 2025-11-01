@@ -49,9 +49,14 @@ def construct_dspy_lm(model: str):
 def _to_attrdict(obj):
     """Recursively convert nested dicts/lists to AttrDicts."""
     if isinstance(obj, dict):
-        return AttrDict({k: _to_attrdict(v) for k, v in obj.items()})
+        # Avoid creating intermediate dicts just to pass to AttrDict
+        ad = AttrDict()
+        for k, v in obj.items():
+            ad[k] = _to_attrdict(v)
+        return ad
     elif isinstance(obj, list):
-        return [_to_attrdict(item) for item in obj]
+        # Avoid list comprehension's intermediate list for large structures
+        return list(map(_to_attrdict, obj))
     else:
         return obj
 
