@@ -70,9 +70,11 @@ def _get_otlp_endpoint() -> str | None:
     Ref: https://opentelemetry.io/docs/languages/sdk-configuration/otlp-exporter/#endpoint-configuration
     """
     # Use `or` instead of default value to do lazy eval
-    return os.environ.get("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT") or os.environ.get(
-        "OTEL_EXPORTER_OTLP_ENDPOINT"
-    )
+    env = os.environ
+    value = env.get("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT")
+    if value:
+        return value
+    return env.get("OTEL_EXPORTER_OTLP_ENDPOINT")
 
 
 def _get_otlp_metrics_endpoint() -> str | None:
