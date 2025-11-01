@@ -227,6 +227,9 @@ from mlflow.webhooks.types import (
     PromptVersionTagSetPayload,
     RegisteredModelCreatedPayload,
 )
+from mlflow.server.graphql.graphql_schema_extensions import schema
+
+_STATIC_PREFIX = os.environ.get("STATIC_PREFIX_ENV_VAR")
 
 _logger = logging.getLogger(__name__)
 _tracking_store = None
@@ -2760,7 +2763,6 @@ def _delete_artifact_mlflow_artifacts(artifact_path):
 @catch_mlflow_exception
 def _graphql():
     from graphql import parse
-
     from mlflow.server.graphql.graphql_no_batching import check_query_safety
     from mlflow.server.graphql.graphql_schema_extensions import schema
 
@@ -2775,7 +2777,11 @@ def _graphql():
         result = check_result
     else:
         # Executing the GraphQL query using the Graphene schema
-        result = schema.execute(query, variables=variables, operation_name=operation_name)
+        result = schema.execute(
+            query, variables=variables, operation_name=operation_name
+        )
+
+    # Convert execution result into json.
 
     # Convert execution result into json.
     result_data = {
@@ -3705,8 +3711,8 @@ def _get_ajax_path(base_path, version=2):
 
 
 def _add_static_prefix(route: str) -> str:
-    if prefix := os.environ.get(STATIC_PREFIX_ENV_VAR):
-        return prefix.rstrip("/") + route
+    if _STATIC_PREFIX:
+        return _STATIC_PREFIX.rstrip("/") + route
     return route
 
 
@@ -3748,12 +3754,24 @@ def get_handler(request_class):
 
 def get_service_endpoints(service, get_handler):
     ret = []
-    for service_method in service.DESCRIPTOR.methods:
-        endpoints = service_method.GetOptions().Extensions[databricks_pb2.rpc].endpoints
+    descriptor_methods = service.DESCRIPTOR.methods
+    # Optimization: instantiate the service ONLY ONCE per call.
+    service_instance = service()
+    get_request_class = service_instance.GetRequestClass
+    # Pre-fetch Extension field to avoid repeated attribute access
+    rpc_ext = databricks_pb2.rpc
+    # Use local bindings for performance critical inside loops (micro-optimization, saves attribute lookups)
+    append_ret = ret.append
+    for service_method in descriptor_methods:
+        endpoints = service_method.GetOptions().Extensions[rpc_ext].endpoints
         for endpoint in endpoints:
-            for http_path in _get_paths(endpoint.path, version=endpoint.since.major):
-                handler = get_handler(service().GetRequestClass(service_method))
-                ret.append((http_path, handler, [endpoint.method]))
+            # _get_paths is hot: call once per endpoint, immediately unpack
+            http_paths = _get_paths(endpoint.path, version=endpoint.since.major)
+            request_class = get_request_class(service_method)
+            handler = get_handler(request_class)
+            method = [endpoint.method]
+            for http_path in http_paths:
+                append_ret((http_path, handler, method))  # avoid repeated lookups
     return ret
 
 
@@ -3762,13 +3780,15 @@ def get_endpoints(get_handler=get_handler):
     Returns:
         List of tuples (path, handler, methods)
     """
-    return (
-        get_service_endpoints(MlflowService, get_handler)
-        + get_service_endpoints(ModelRegistryService, get_handler)
-        + get_service_endpoints(MlflowArtifactsService, get_handler)
-        + get_service_endpoints(WebhookService, get_handler)
-        + [(_add_static_prefix("/graphql"), _graphql, ["GET", "POST"])]
-    )
+    # Optimization: combine lists without repeated + (which recomputes and copies).
+    # Use .extend for better efficiency.
+    endpoints = []
+    endpoints.extend(get_service_endpoints(MlflowService, get_handler))
+    endpoints.extend(get_service_endpoints(ModelRegistryService, get_handler))
+    endpoints.extend(get_service_endpoints(MlflowArtifactsService, get_handler))
+    endpoints.extend(get_service_endpoints(WebhookService, get_handler))
+    endpoints.append((_add_static_prefix("/graphql"), _graphql, ["GET", "POST"]))
+    return endpoints
 
 
 # Evaluation Dataset APIs
