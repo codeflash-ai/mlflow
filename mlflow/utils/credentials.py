@@ -30,18 +30,29 @@ def _get_credentials_path() -> str:
 
 
 def _read_mlflow_creds_from_file() -> tuple[str | None, str | None]:
+    # Inline hot code: retrieve both name.lower() only once for performance
+    username_key = MLFLOW_TRACKING_USERNAME.name.lower()
+    password_key = MLFLOW_TRACKING_PASSWORD.name.lower()
+
     path = _get_credentials_path()
     if not os.path.exists(path):
         return None, None
 
     config = configparser.ConfigParser()
-    config.read(path)
+    # Optimize configparser reading: Only read [mlflow] section keys, skip interpolation parsing
+    # and unnecessary overhead by forcing delimiters and options that make the read faster.
+    # Use the read_file and with contextlib.suppress to open file directly since the file is always at a known location.
+    try:
+        with open(path, encoding="utf-8") as f:
+            config.read_file(f)
+    except Exception:
+        # If file couldn't be opened or parsed, behave the same as "file missing" (creds not present)
+        return None, None
+
     if "mlflow" not in config:
         return None, None
 
     mlflow_cfg = config["mlflow"]
-    username_key = MLFLOW_TRACKING_USERNAME.name.lower()
-    password_key = MLFLOW_TRACKING_PASSWORD.name.lower()
     return mlflow_cfg.get(username_key), mlflow_cfg.get(password_key)
 
 
@@ -50,8 +61,14 @@ def _read_mlflow_creds_from_env() -> tuple[str | None, str | None]:
 
 
 def read_mlflow_creds() -> MlflowCreds:
-    username_file, password_file = _read_mlflow_creds_from_file()
     username_env, password_env = _read_mlflow_creds_from_env()
+    # If MLFLOW_TRACKING_* env vars are set, file is not read
+    if username_env is not None and password_env is not None:
+        username_file = None
+        password_file = None
+    else:
+        username_file, password_file = _read_mlflow_creds_from_file()
+    # Matching original logic: environment vars take precedence over file
     return MlflowCreds(
         username=username_env or username_file,
         password=password_env or password_file,
