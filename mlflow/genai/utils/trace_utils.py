@@ -189,7 +189,12 @@ def extract_expectations_from_trace(
     """
     validated_source = AssessmentSourceType._standardize(source) if source is not None else None
 
-    expectation_assessments = trace.search_assessments(type="expectation")
+    from mlflow.entities.assessment import Expectation
+
+    expectation_assessments = [
+        exp for exp in trace.info.assessments
+        if isinstance(exp, Expectation) and (exp.valid in (True, None))
+    ]
 
     if validated_source is not None:
         expectation_assessments = [
