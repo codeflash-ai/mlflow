@@ -228,6 +228,10 @@ from mlflow.webhooks.types import (
     RegisteredModelCreatedPayload,
 )
 
+_SIMPLE_PARAM_PATTERN = re.compile(r"{(\w+)}")
+
+_ASSESSMENT_TRACE_ID_PATTERN = re.compile(r"{assessment\.trace_id}")
+
 _logger = logging.getLogger(__name__)
 _tracking_store = None
 _model_registry_store = None
@@ -3729,13 +3733,11 @@ def _convert_path_parameter_to_flask_format(path):
     not understand it. Instead, we need to specify it with a different format,
     like /mlflow/trace/<request_id>.
     """
+    # Handle Databricks-specific syntax like {assessment.trace_id} -> <trace_id> first for efficiency
+    # (very specific/rare compared to the general catch-all pattern)
+    path = _ASSESSMENT_TRACE_ID_PATTERN.sub(r"<trace_id>", path)
     # Handle simple parameters like {trace_id}
-    path = re.sub(r"{(\w+)}", r"<\1>", path)
-
-    # Handle Databricks-specific syntax like {assessment.trace_id} -> <trace_id>
-    # This is needed because Databricks can extract trace_id from request body,
-    # but Flask needs it in the URL path
-    return re.sub(r"{assessment\.trace_id}", r"<trace_id>", path)
+    return _SIMPLE_PARAM_PATTERN.sub(r"<\1>", path)
 
 
 def get_handler(request_class):
