@@ -15,7 +15,7 @@ def _is_path(filename: str) -> bool:
     Return True if `filename` is a path, False otherwise. For example,
     "foo/bar" is a path, but "bar" is not.
     """
-    return os.path.basename(filename) != filename
+    return os.sep in filename
 
 
 class HTTPDatasetSource(DatasetSource):
