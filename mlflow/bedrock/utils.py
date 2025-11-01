@@ -114,19 +114,40 @@ def parse_complete_token_usage_from_response(
     token_usage_data = {}
 
     # Extract input tokens - required for complete usage
-    if (input_tokens := _extract_token_value_by_keys(usage_data, INPUT_TOKEN_KEYS)) is not None:
+    input_tokens = None
+    for name in INPUT_TOKEN_KEYS:
+        value = usage_data.get(name)
+        if isinstance(value, int):
+            input_tokens = value
+            break
+
+    if input_tokens is not None:
         token_usage_data[TokenUsageKey.INPUT_TOKENS] = input_tokens
     else:
         return None  # Incomplete usage without input tokens
 
     # Extract output tokens - required for complete usage
-    if (output_tokens := _extract_token_value_by_keys(usage_data, OUTPUT_TOKEN_KEYS)) is not None:
+    output_tokens = None
+    for name in OUTPUT_TOKEN_KEYS:
+        value = usage_data.get(name)
+        if isinstance(value, int):
+            output_tokens = value
+            break
+
+    if output_tokens is not None:
         token_usage_data[TokenUsageKey.OUTPUT_TOKENS] = output_tokens
     else:
         return None  # Incomplete usage without output tokens
 
     # Extract or calculate total tokens
-    if (total_tokens := _extract_token_value_by_keys(usage_data, TOTAL_TOKEN_KEYS)) is not None:
+    total_tokens = None
+    for name in TOTAL_TOKEN_KEYS:
+        value = usage_data.get(name)
+        if isinstance(value, int):
+            total_tokens = value
+            break
+
+    if total_tokens is not None:
         token_usage_data[TokenUsageKey.TOTAL_TOKENS] = total_tokens
     else:
         # Calculate total as input + output
