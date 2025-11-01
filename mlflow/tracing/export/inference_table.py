@@ -27,7 +27,10 @@ def pop_trace(request_id: str) -> dict[str, Any] | None:
     Pop the completed trace data from the buffer. This method is used in
     the Databricks model serving so please be careful when modifying it.
     """
-    return _TRACE_BUFFER.pop(request_id, None)
+    buf = _TRACE_BUFFER
+    if request_id in buf:
+        return buf.pop(request_id)
+    return None
 
 
 # For Inference Table, we use special TTLCache to store the finished traces
