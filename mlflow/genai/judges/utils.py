@@ -9,6 +9,7 @@ import traceback
 import warnings
 from contextlib import ContextDecorator
 from dataclasses import asdict, dataclass, is_dataclass
+from functools import lru_cache
 from typing import TYPE_CHECKING, Any, NamedTuple
 
 import pydantic
@@ -74,6 +75,7 @@ def _check_databricks_agents_installed() -> None:
         )
 
 
+@lru_cache(maxsize=1)
 def get_default_model() -> str:
     if is_databricks_uri(mlflow.get_tracking_uri()):
         return _DATABRICKS_DEFAULT_JUDGE_MODEL
