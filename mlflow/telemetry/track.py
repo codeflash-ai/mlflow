@@ -20,7 +20,9 @@ def record_usage_event(event: type[Event]) -> Callable[[Callable[P, R]], Callabl
     def decorator(func: Callable[P, R]) -> Callable[P, R]:
         @functools.wraps(func)
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
-            if is_telemetry_disabled() or _is_telemetry_disabled_for_event(event):
+            telemetry_disabled = is_telemetry_disabled()
+            _is_event_disabled = _is_telemetry_disabled_for_event
+            if telemetry_disabled or _is_event_disabled(event):
                 return func(*args, **kwargs)
 
             success = True
