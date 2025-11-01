@@ -183,13 +183,13 @@ class ScorerVersion(_MlflowObject):
             and should not typically be called directly by users.
         """
         proto = ProtoScorer()
-        proto.experiment_id = int(self.experiment_id)
-        proto.scorer_name = self.scorer_name
-        proto.scorer_version = self.scorer_version
+        proto.experiment_id = int(self._experiment_id)
+        proto.scorer_name = self._scorer_name
+        proto.scorer_version = self._scorer_version
         proto.serialized_scorer = self._serialized_scorer
-        proto.creation_time = self.creation_time
-        if self.scorer_id is not None:
-            proto.scorer_id = self.scorer_id
+        proto.creation_time = self._creation_time
+        if self._scorer_id is not None:
+            proto.scorer_id = self._scorer_id
         return proto
 
     def __repr__(self):
@@ -205,3 +205,27 @@ class ScorerVersion(_MlflowObject):
             f"scorer_name='{self.scorer_name}', "
             f"scorer_version={self.scorer_version})>"
         )
+
+    @property
+    def experiment_id(self) -> str:
+        return self._experiment_id
+
+    @property
+    def scorer_name(self) -> str:
+        return self._scorer_name
+
+    @property
+    def scorer_version(self) -> int:
+        return self._scorer_version
+
+    @property
+    def serialized_scorer(self) -> str:
+        return self._serialized_scorer
+
+    @property
+    def creation_time(self) -> int:
+        return self._creation_time
+
+    @property
+    def scorer_id(self) -> str | None:
+        return self._scorer_id
