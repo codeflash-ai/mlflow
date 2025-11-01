@@ -308,18 +308,24 @@ def _get_pyfunc_supported_input_types():
     # Importing here as the util module depends on optional packages not available in mlflow-skinny
     import mlflow.models.utils as base_module
 
+
+    pyfunc_input_args = get_args(base_module.PyFuncInput)
     supported_input_types = []
-    for input_type in get_args(base_module.PyFuncInput):
+    base_module_attrs = base_module.__dict__
+
+    for input_type in pyfunc_input_args:
         if isinstance(input_type, type):
             supported_input_types.append(input_type)
         elif isinstance(input_type, ForwardRef):
             name = input_type.__forward_arg__
-            if hasattr(base_module, name):
-                cls = getattr(base_module, name)
+            # Use dict lookup for faster getattr-style access
+            if name in base_module_attrs:
+                cls = base_module_attrs[name]
                 supported_input_types.append(cls)
         else:
             # typing instances like List, Dict, Tuple, etc.
-            supported_input_types.append(get_origin(input_type))
+            origin = get_origin(input_type)
+            supported_input_types.append(origin)
     return tuple(supported_input_types)
 
 
