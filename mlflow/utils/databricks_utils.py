@@ -7,6 +7,7 @@ import platform
 import subprocess
 import time
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import TYPE_CHECKING, Callable, NamedTuple, ParamSpec, TypeVar
 
 from mlflow.utils.logging_utils import eprint
@@ -255,6 +256,7 @@ def get_databricks_runtime_version():
     return None
 
 
+@lru_cache(maxsize=1)
 def is_in_databricks_runtime():
     return get_databricks_runtime_version() is not None
 
