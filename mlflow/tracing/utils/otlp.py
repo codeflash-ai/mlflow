@@ -8,6 +8,10 @@ from mlflow.environment_variables import MLFLOW_ENABLE_OTLP_EXPORTER
 from mlflow.exceptions import MlflowException
 from mlflow.protos.databricks_pb2 import RESOURCE_DOES_NOT_EXIST
 
+_environ = os.environ
+
+_get = _environ.get
+
 # Constants for OpenTelemetry integration
 MLFLOW_EXPERIMENT_ID_HEADER = "x-mlflow-experiment-id"
 OTLP_TRACES_PATH = "/v1/traces"
@@ -94,7 +98,8 @@ def _get_otlp_protocol(default_value: str = "grpc") -> str:
     Args:
         default_value: The default protocol to use if no environment variables are set.
     """
-    return os.environ.get("OTEL_EXPORTER_OTLP_TRACES_PROTOCOL") or os.environ.get(
+    # Access .get via local binding for performance
+    return _get("OTEL_EXPORTER_OTLP_TRACES_PROTOCOL") or _get(
         "OTEL_EXPORTER_OTLP_PROTOCOL", default_value
     )
 
