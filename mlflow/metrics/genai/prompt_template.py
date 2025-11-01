@@ -52,14 +52,23 @@ class PromptTemplate:
 
     def partial_fill(self, **kwargs: Any) -> "PromptTemplate":
         safe_kwargs = {k: v for k, v in kwargs.items() if v is not None}
+        # Reuse the formatter and only parse each template_str once
+        formatter = string.Formatter()
         new_template_strs = []
         for template_str in self.template_strs:
-            extracted_variables = [
-                fname for _, fname, _, _ in string.Formatter().parse(template_str) if fname
-            ]
-            safe_available_kwargs = {
-                k: safe_kwargs.get(k, "{" + k + "}") for k in extracted_variables
-            }
+            # Parse once, extract variables, and construct safe_available_kwargs in a single pass
+            extracted_variables = []
+            for _, fname, _, _ in formatter.parse(template_str):
+                if fname:
+                    extracted_variables.append(fname)
+            # Avoid constructing an intermediate list when not necessary
+            safe_available_kwargs = {}
+            for k in extracted_variables:
+                v = safe_kwargs.get(k)
+                if v is not None:
+                    safe_available_kwargs[k] = v
+                else:
+                    safe_available_kwargs[k] = "{" + k + "}"
             new_template_strs.append(template_str.format_map(safe_available_kwargs))
 
         return PromptTemplate(template_str=new_template_strs)
