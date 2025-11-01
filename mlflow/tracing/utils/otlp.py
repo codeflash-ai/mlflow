@@ -116,7 +116,7 @@ def _get_otlp_metrics_protocol(default_value: str = "grpc") -> str:
 
 def _otel_proto_bytes_to_id(id_bytes: bytes) -> int:
     """Convert OTel protobuf bytes to integer ID."""
-    return int.from_bytes(id_bytes, byteorder="big", signed=False)
+    return int.from_bytes(id_bytes, "big")
 
 
 def _set_otel_proto_anyvalue(pb_any_value: AnyValue, value: Any) -> None:
