@@ -158,13 +158,14 @@ class ScorerVersion(_MlflowObject):
             This method is primarily used internally by MLflow's tracking infrastructure
             and should not typically be called directly by users.
         """
+        scorer_id = proto.scorer_id if proto.HasField("scorer_id") else None
         return cls(
-            experiment_id=proto.experiment_id,
-            scorer_name=proto.scorer_name,
-            scorer_version=proto.scorer_version,
-            serialized_scorer=proto.serialized_scorer,
-            creation_time=proto.creation_time,
-            scorer_id=proto.scorer_id if proto.HasField("scorer_id") else None,
+            proto.experiment_id,
+            proto.scorer_name,
+            proto.scorer_version,
+            proto.serialized_scorer,
+            proto.creation_time,
+            scorer_id,
         )
 
     def to_proto(self):
