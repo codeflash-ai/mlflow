@@ -44,13 +44,15 @@ class ScoringServerClient(BaseScoringServerClient):
     def __init__(self, host, port):
         self.url_prefix = f"http://{host}:{port}"
 
+        self._version_url = f"{self.url_prefix}/version"
+
     def ping(self):
         ping_status = requests.get(url=self.url_prefix + "/ping")
         if ping_status.status_code != 200:
             raise Exception(f"ping failed (error code {ping_status.status_code})")
 
     def get_version(self):
-        resp_status = requests.get(url=self.url_prefix + "/version")
+        resp_status = requests.get(self._version_url)
         if resp_status.status_code != 200:
             raise Exception(f"version failed (error code {resp_status.status_code})")
         return resp_status.text
