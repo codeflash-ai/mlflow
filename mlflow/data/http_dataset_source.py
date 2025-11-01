@@ -126,7 +126,7 @@ class HTTPDatasetSource(DatasetSource):
             A JSON-compatible dictionary representation of the HTTPDatasetSource.
         """
         return {
-            "url": self.url,
+            "url": self._url,
         }
 
     @classmethod
