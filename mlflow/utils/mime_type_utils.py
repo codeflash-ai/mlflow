@@ -1,8 +1,9 @@
 import os
-import pathlib
 from mimetypes import guess_type
 
 from mlflow.version import IS_TRACING_SDK_ONLY
+
+_text_exts_set = None
 
 
 # TODO: Create a module to define constants to avoid circular imports
@@ -44,15 +45,24 @@ def get_text_extensions():
 
 
 def _guess_mime_type(file_path):
-    filename = pathlib.Path(file_path).name
-    extension = os.path.splitext(filename)[-1].replace(".", "")
+    filename = os.path.basename(file_path)
+    dot_index = filename.rfind(".")
+    extension = filename[dot_index + 1 :] if dot_index != -1 else ""
     # for MLmodel/mlproject with no extensions
     if extension == "":
         extension = filename
-    if extension in get_text_extensions():
+    if extension in _get_text_extensions_set():
         return "text/plain"
     mime_type, _ = guess_type(filename)
     if not mime_type:
         # As a fallback, if mime type is not detected, treat it as a binary file
         return "application/octet-stream"
     return mime_type
+
+
+def _get_text_extensions_set():
+    global _text_exts_set
+    if _text_exts_set is None:
+        # We call get_text_extensions() but only once, and keep as a set.
+        _text_exts_set = set(get_text_extensions())
+    return _text_exts_set
