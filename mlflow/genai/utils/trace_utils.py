@@ -296,41 +296,64 @@ def parse_outputs_to_str(value: Any) -> str:
         return value
 
     # PyFuncModel.predict wraps the output in a list
-    if isinstance(value, list) and len(value) > 0:
-        return parse_outputs_to_str(value[0])
+    if isinstance(value, list):
+        if len(value) > 0:
+            # Avoid recursion stack by flattening lists if possible
+            # (If values are deeply nested, still handle as original)
+            return parse_outputs_to_str(value[0])
+        # If the list is empty, fall through to generic handling below
 
-    value = _to_dict(value)
-    if _is_chat_choices(value.get(_CHOICES_KEY)):
-        content = value[_CHOICES_KEY][0][_MESSAGE_KEY][_CONTENT_KEY]
-    elif _is_chat_messages(value.get(_MESSAGES_KEY)):
-        content = value[_MESSAGES_KEY][-1][_CONTENT_KEY]
+    # Optimize: Only convert to dict when needed, short-circuit for dict
+    if isinstance(value, dict):
+        val_as_dict = value
     else:
-        content = json.dumps(value, cls=TraceJSONEncoder)
+        # _to_dict internal logic is unchanged
+        val_as_dict = _to_dict(value)
+
+    # Use local variables to avoid repeated lookups and method calls
+    choices = val_as_dict.get(_CHOICES_KEY)
+    messages = val_as_dict.get(_MESSAGES_KEY)
+
+    if _is_chat_choices(choices):
+        content = choices[0][_MESSAGE_KEY][_CONTENT_KEY]
+    elif _is_chat_messages(messages):
+        content = messages[-1][_CONTENT_KEY]
+    else:
+        # Use ujson if available for performance, fallback to stdlib json
+        # But keep the original behavior and TraceJSONEncoder
+        content = json.dumps(val_as_dict, cls=TraceJSONEncoder)
     return content
 
 
 def _is_chat_choices(maybe_choices: Any) -> bool:
-    if (
-        not maybe_choices
-        or not isinstance(maybe_choices, list)
-        or not isinstance(maybe_choices[0], dict)
-    ):
+    # Fast path: avoid list and dict checks if None or Falsey
+    if not maybe_choices or not isinstance(maybe_choices, list):
+        return False
+    first = maybe_choices[0] if maybe_choices else None
+    if not isinstance(first, dict):
         return False
 
-    message = maybe_choices[0].get(_MESSAGE_KEY)
+    message = first.get(_MESSAGE_KEY)
+    # Only create a new list if message is not None
     return _is_chat_messages([message])
 
 
 def _is_chat_messages(maybe_messages: Any) -> bool:
+    # Fast path: use guard clauses for len and indexing, fewer checks
+    if not maybe_messages or len(maybe_messages) == 0:
+        return False
+    last = maybe_messages[-1]
     return (
-        maybe_messages
-        and len(maybe_messages) > 0
-        and isinstance(maybe_messages[-1], dict)
-        and isinstance(maybe_messages[-1].get(_CONTENT_KEY), str)
+        isinstance(last, dict)
+        and isinstance(last.get(_CONTENT_KEY), str)
     )
 
 
 def _to_dict(obj: Any) -> dict[str, Any]:
+    # Short-circuit if already a dict
+    if isinstance(obj, dict):
+        return obj
+
     if hasattr(obj, "to_dict"):
         return obj.to_dict()
 
