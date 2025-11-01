@@ -302,8 +302,9 @@ def _get_pip_deps(conda_env):
         The pip dependencies from the conda env.
     """
     if conda_env is not None:
-        for dep in conda_env["dependencies"]:
-            if _is_pip_deps(dep):
+        dependencies = conda_env["dependencies"]
+        for dep in dependencies:
+            if type(dep) is dict and "pip" in dep:
                 return dep["pip"]
     return []
 
