@@ -118,7 +118,7 @@ class HTTPDatasetSource(DatasetSource):
         Args:
             raw_source: The raw source, e.g. a string like "http://mysite/mydata.tar.gz".
         """
-        return HTTPDatasetSource(raw_source)
+        return cls(raw_source)
 
     def to_dict(self) -> dict[Any, Any]:
         """
