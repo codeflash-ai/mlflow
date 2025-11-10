@@ -1,6 +1,8 @@
 import hashlib
 from typing import Any
 
+import numpy as np
+import pandas as pd
 from packaging.version import Version
 
 from mlflow.exceptions import MlflowException
@@ -18,17 +20,25 @@ def compute_pandas_digest(df) -> str:
     Returns:
         A string digest.
     """
-    import numpy as np
-    import pandas as pd
+    # trim to max rows using iloc for efficiency
+    trimmed_df = df.iloc[:MAX_ROWS]
 
-    # trim to max rows
-    trimmed_df = df.head(MAX_ROWS)
+    # keep string and number columns, drop other column types
 
     # keep string and number columns, drop other column types
     if Version(pd.__version__) >= Version("2.1.0"):
-        string_columns = trimmed_df.columns[(df.map(type) == str).all(0)]
+        # Use numpy for vectorized type checking
+        types_arr = trimmed_df.map(type).to_numpy()
+        str_mask = types_arr == str
+        # All entries per column must be True (axis 0)
+        string_col_idx = str_mask.all(axis=0)
+        string_columns = trimmed_df.columns[string_col_idx]
     else:
-        string_columns = trimmed_df.columns[(df.applymap(type) == str).all(0)]
+        types_arr = trimmed_df.applymap(type).to_numpy()
+        str_mask = types_arr == str
+        string_col_idx = str_mask.all(axis=0)
+        string_columns = trimmed_df.columns[string_col_idx]
+
     numeric_columns = trimmed_df.select_dtypes(include=[np.number]).columns
 
     desired_columns = string_columns.union(numeric_columns)
