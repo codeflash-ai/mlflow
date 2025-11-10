@@ -43,6 +43,14 @@ from mlflow.utils.requirements_utils import (
 from mlflow.utils.timeout import MlflowTimeoutError, run_with_timeout
 from mlflow.version import VERSION
 
+_base_conda_env = yaml.safe_load(
+    """\
+name: mlflow-env
+channels:
+  - conda-forge
+"""
+)
+
 _logger = logging.getLogger(__name__)
 
 _conda_header = """\
@@ -241,7 +249,7 @@ def _mlflow_conda_env(
         else []
     )
     pip_deps = mlflow_deps + additional_pip_deps
-    conda_deps = additional_conda_deps if additional_conda_deps else []
+    conda_deps = list(additional_conda_deps) if additional_conda_deps else []
     if pip_deps:
         pip_version = _get_package_version("pip")
         if pip_version is not None:
@@ -257,9 +265,15 @@ def _mlflow_conda_env(
             )
             conda_deps.append("pip")
 
-    env = yaml.safe_load(_conda_header)
-    env["dependencies"] = [f"python={PYTHON_VERSION}"]
-    env["dependencies"] += conda_deps
+    # Deepcopy is avoided: construct a fresh dict each time, using parsed _base_conda_env as template
+    env = {
+        "name": _base_conda_env["name"],
+        "channels": list(_base_conda_env["channels"]),
+        "dependencies": [],
+    }
+
+    env["dependencies"].append(f"python={PYTHON_VERSION}")
+    env["dependencies"].extend(conda_deps)
     env["dependencies"].append({"pip": pip_deps})
     if additional_conda_channels is not None:
         env["channels"] += additional_conda_channels

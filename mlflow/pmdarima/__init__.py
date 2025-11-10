@@ -97,6 +97,8 @@ from mlflow.utils.model_utils import (
 )
 from mlflow.utils.requirements_utils import _get_pinned_requirement
 
+_default_pmdarima_requirements = [_get_pinned_requirement("pmdarima")]
+
 FLAVOR_NAME = "pmdarima"
 _MODEL_BINARY_KEY = "data"
 _MODEL_BINARY_FILE_NAME = "model.pmd"
@@ -114,7 +116,7 @@ def get_default_pip_requirements():
         contains these requirements.
     """
 
-    return [_get_pinned_requirement("pmdarima")]
+    return _default_pmdarima_requirements
 
 
 def get_default_conda_env():
