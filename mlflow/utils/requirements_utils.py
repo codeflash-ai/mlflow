@@ -11,6 +11,7 @@ import re
 import subprocess
 import sys
 import tempfile
+from functools import lru_cache
 from itertools import chain, filterfalse
 from pathlib import Path
 from threading import Timer
@@ -572,10 +573,11 @@ def _get_pinned_requirement(req_str, version=None, module=None):
     req = Requirement(req_str)
     package = req.name
     if version is None:
-        version_raw = _get_installed_version(package, module)
-        local_version_label = _get_local_version_label(version_raw)
+        # Use cached expensive get_installed_version and parsing helpers
+        version_raw = _get_installed_version_cached(package, module)
+        local_version_label = _get_local_version_label_cached(version_raw)
         if local_version_label:
-            version = _strip_local_version_label(version_raw)
+            version = _strip_local_version_label_cached(version_raw)
             if not (is_in_databricks_runtime() and package in ("torch", "torchvision")):
                 msg = (
                     f"Found {package} version ({version_raw}) contains a local version label "
@@ -701,3 +703,18 @@ def warn_dependency_requirement_mismatches(model_requirements: list[str]):
             "mismatches. Set logging level to DEBUG to see the full traceback."
         )
         _logger.debug("", exc_info=True)
+
+
+@lru_cache(maxsize=64)
+def _get_installed_version_cached(package: str, module: str | None = None) -> str:
+    return _get_installed_version(package, module)
+
+
+@lru_cache(maxsize=64)
+def _get_local_version_label_cached(version: str):
+    return _get_local_version_label(version)
+
+
+@lru_cache(maxsize=64)
+def _strip_local_version_label_cached(version: str):
+    return _strip_local_version_label(version)
