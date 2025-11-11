@@ -84,8 +84,11 @@ def is_databricks_uri(uri):
     Databricks URIs look like 'databricks' (default profile) or 'databricks://profile'
     or 'databricks://secret_scope:secret_key_prefix'.
     """
-    scheme = urllib.parse.urlparse(uri).scheme
-    return scheme == "databricks" or uri == "databricks"
+    # Fast-path: direct string match for "databricks" without urlparse cost
+    if uri == "databricks":
+        return True
+    scheme = urllib.parse.urlsplit(uri).scheme
+    return scheme == "databricks"
 
 
 def is_fuse_or_uc_volumes_uri(uri):
@@ -178,7 +181,7 @@ def get_db_info_from_uri(uri):
     Get the Databricks profile specified by the tracking URI (if any), otherwise
     returns None.
     """
-    parsed_uri = urllib.parse.urlparse(uri)
+    parsed_uri = urllib.parse.urlsplit(uri)
     if parsed_uri.scheme in ("databricks", _DATABRICKS_UNITY_CATALOG_SCHEME):
         # netloc should not be an empty string unless URI is formatted incorrectly.
         if parsed_uri.netloc == "":
@@ -186,15 +189,14 @@ def get_db_info_from_uri(uri):
                 f"URI is formatted incorrectly: no netloc in URI '{uri}'."
                 " This may be the case if there is only one slash in the URI."
             )
-        profile_tokens = parsed_uri.netloc.split(":")
-        parsed_scope = profile_tokens[0]
-        if len(profile_tokens) == 1:
+        # Optimized parsing: use find() to avoid multiple splits
+        first_colon = parsed_uri.netloc.find(":")
+        if first_colon == -1:
+            parsed_scope = parsed_uri.netloc
             parsed_key_prefix = None
-        elif len(profile_tokens) == 2:
-            parsed_key_prefix = profile_tokens[1]
         else:
-            # parse the content before the first colon as the profile.
-            parsed_key_prefix = ":".join(profile_tokens[1:])
+            parsed_scope = parsed_uri.netloc[:first_colon]
+            parsed_key_prefix = parsed_uri.netloc[first_colon+1:]
         validate_db_scope_prefix_info(parsed_scope, parsed_key_prefix)
         return parsed_scope, parsed_key_prefix
     return None, None
@@ -234,7 +236,7 @@ def add_databricks_profile_info_to_artifact_uri(artifact_uri, databricks_profile
     """
     if not databricks_profile_uri or not is_databricks_uri(databricks_profile_uri):
         return artifact_uri
-    artifact_uri_parsed = urllib.parse.urlparse(artifact_uri)
+    artifact_uri_parsed = urllib.parse.urlsplit(artifact_uri)
     # Do not overwrite the authority section if there is already one
     if artifact_uri_parsed.netloc:
         return artifact_uri
@@ -248,7 +250,7 @@ def add_databricks_profile_info_to_artifact_uri(artifact_uri, databricks_profile
             prefix = ":" + key_prefix if key_prefix else ""
             netloc = profile + prefix + "@databricks"
         new_parsed = artifact_uri_parsed._replace(netloc=netloc)
-        return urllib.parse.urlunparse(new_parsed)
+        return urllib.parse.urlunsplit(new_parsed)
     else:
         return artifact_uri
 
