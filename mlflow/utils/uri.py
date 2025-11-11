@@ -284,7 +284,7 @@ def get_uri_scheme(uri_or_path):
 
 
 def extract_and_normalize_path(uri):
-    parsed_uri_path = urllib.parse.urlparse(uri).path
+    parsed_uri_path = urllib.parse.urlsplit(uri).path
     normalized_path = posixpath.normpath(parsed_uri_path)
     return normalized_path.lstrip("/")
 
