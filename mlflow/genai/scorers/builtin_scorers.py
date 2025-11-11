@@ -51,6 +51,24 @@ from mlflow.utils.annotations import experimental
 from mlflow.utils.docstring_utils import format_docstring
 from mlflow.utils.uri import is_databricks_uri
 
+_JUDGE_FIELDS_RS = [
+    JudgeField(
+        name="trace",
+        description=(
+            "The trace of the model's execution. Must contain at least one span with "
+            "type `RETRIEVER`. MLflow will extract the retrieved context from that span. "
+            "If multiple spans are found, MLflow will use the **last** one."
+        ),
+    ),
+    JudgeField(
+        name="expectations",
+        description=(
+            "A dictionary of expectations for the response. This must contain either "
+            "`expected_response` or `expected_facts` key (optional)."
+        ),
+    ),
+]
+
 GENAI_CONFIG_NAME = "databricks-agent"
 
 
@@ -489,23 +507,7 @@ class RetrievalSufficiency(BuiltInScorer):
         Returns:
             List of JudgeField objects defining the input fields based on the __call__ method.
         """
-        return [
-            JudgeField(
-                name="trace",
-                description=(
-                    "The trace of the model's execution. Must contain at least one span with "
-                    "type `RETRIEVER`. MLflow will extract the retrieved context from that span. "
-                    "If multiple spans are found, MLflow will use the **last** one."
-                ),
-            ),
-            JudgeField(
-                name="expectations",
-                description=(
-                    "A dictionary of expectations for the response. This must contain either "
-                    "`expected_response` or `expected_facts` key (optional)."
-                ),
-            ),
-        ]
+        return _JUDGE_FIELDS_RS
 
     def validate_columns(self, columns: set[str]) -> None:
         super().validate_columns(columns)
