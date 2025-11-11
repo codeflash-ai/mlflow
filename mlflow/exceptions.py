@@ -26,6 +26,10 @@ from mlflow.protos.databricks_pb2 import (
     ErrorCode,
 )
 
+_INTERNAL_ERROR_NAME = ErrorCode.Name(INTERNAL_ERROR)
+
+_INVALID_PARAMETER_VALUE_NAME = ErrorCode.Name(INVALID_PARAMETER_VALUE)
+
 ERROR_CODE_TO_HTTP_STATUS = {
     ErrorCode.Name(INTERNAL_ERROR): 500,
     ErrorCode.Name(INVALID_STATE): 500,
@@ -83,10 +87,16 @@ class MlflowException(Exception):
             kwargs: Additional key-value pairs to include in the serialized JSON representation
                 of the MlflowException.
         """
-        try:
-            self.error_code = ErrorCode.Name(error_code)
-        except (ValueError, TypeError):
-            self.error_code = ErrorCode.Name(INTERNAL_ERROR)
+        # Use cached names for common codes to avoid repeated proto lookups.
+        if error_code == INTERNAL_ERROR:
+            self.error_code = _INTERNAL_ERROR_NAME
+        elif error_code == INVALID_PARAMETER_VALUE:
+            self.error_code = _INVALID_PARAMETER_VALUE_NAME
+        else:
+            try:
+                self.error_code = ErrorCode.Name(error_code)
+            except (ValueError, TypeError):
+                self.error_code = _INTERNAL_ERROR_NAME
         message = str(message)
         self.message = message
         self.json_kwargs = kwargs
