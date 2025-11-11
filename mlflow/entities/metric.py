@@ -133,13 +133,13 @@ class Metric(_MlflowObject):
             dict: The Metric object represented as a dictionary.
         """
         return {
-            "key": self.key,
-            "value": self.value,
-            "timestamp": self.timestamp,
-            "step": self.step,
-            "model_id": self.model_id,
-            "dataset_name": self.dataset_name,
-            "dataset_digest": self.dataset_digest,
+            "key": self._key,
+            "value": self._value,
+            "timestamp": self._timestamp,
+            "step": self._step,
+            "model_id": self._model_id,
+            "dataset_name": self._dataset_name,
+            "dataset_digest": self._dataset_digest,
             "run_id": self._run_id,
         }
 
