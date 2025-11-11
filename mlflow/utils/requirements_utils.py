@@ -54,7 +54,8 @@ def _is_requirements_file(line):
 
 
 def _is_constraints_file(line):
-    return line.startswith("-c ") or line.startswith("--constraint ")
+    prefixes = ("-c ", "--constraint ")
+    return line.startswith(prefixes)
 
 
 def _join_continued_lines(lines):
