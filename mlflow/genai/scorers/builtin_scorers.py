@@ -51,6 +51,10 @@ from mlflow.utils.annotations import experimental
 from mlflow.utils.docstring_utils import format_docstring
 from mlflow.utils.uri import is_databricks_uri
 
+_AFFIRMATIVE_VALUES_SET = frozenset(s.lower() for s in _AFFIRMATIVE_VALUES)
+
+_NEGATIVE_VALUES_SET = frozenset(s.lower() for s in _NEGATIVE_VALUES)
+
 GENAI_CONFIG_NAME = "databricks-agent"
 
 
@@ -219,20 +223,22 @@ def resolve_scorer_fields(
 
 def _sanitize_scorer_feedback(feedback: Feedback) -> Feedback:
     """Sanitize feedback values from LLM judges to ensure YES/NO consistency."""
-    if feedback.value:
-        if isinstance(feedback.value, CategoricalRating):
+    value = feedback.value
+    if value:
+        # Using type() direct comparison is faster than isinstance for single class check
+        if type(value) is CategoricalRating:
             return feedback
 
-        if isinstance(feedback.value, str):
-            value_str = feedback.value.strip().lower()
-
-            if value_str in _AFFIRMATIVE_VALUES:
+        if type(value) is str:
+            # Strip and lowercase only if necessary
+            # Using memoryview or similar here is pointless; just optimize set lookup
+            value_str = value.strip().lower()
+            if value_str in _AFFIRMATIVE_VALUES_SET:
                 feedback.value = CategoricalRating.YES
-            elif value_str in _NEGATIVE_VALUES:
+            elif value_str in _NEGATIVE_VALUES_SET:
                 feedback.value = CategoricalRating.NO
             else:
                 feedback.value = CategoricalRating(value_str)
-
     return feedback
 
 
