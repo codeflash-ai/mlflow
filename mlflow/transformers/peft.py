@@ -1,3 +1,5 @@
+PEFTMODEL_TYPE = None
+
 """
 PEFT (Parameter-Efficient Fine-Tuning) is a library for efficiently adapting large pretrained
 models without fine-tuning all of model parameters but only a small number of (extra) parameters.
@@ -10,12 +12,9 @@ _PEFT_ADAPTOR_DIR_NAME = "peft"
 
 
 def is_peft_model(model) -> bool:
-    try:
-        from peft import PeftModel
-    except ImportError:
+    if PEFTMODEL_TYPE is None:
         return False
-
-    return isinstance(model, PeftModel)
+    return isinstance(model, PEFTMODEL_TYPE)
 
 
 def get_peft_base_model(model):
