@@ -8,6 +8,8 @@ from packaging.version import InvalidVersion, Version
 from mlflow.ml_package_versions import _ML_PACKAGE_VERSIONS, FLAVOR_TO_MODULE_NAME
 from mlflow.utils.databricks_utils import is_in_databricks_runtime
 
+_DEV_VERSION_REGEX = re.compile(r"(\.?)dev.*")
+
 
 def _check_version_in_range(ver, min_ver, max_ver):
     return Version(min_ver) <= Version(ver) <= Version(max_ver)
@@ -40,7 +42,7 @@ def _is_pre_or_dev_release(ver):
 
 
 def _strip_dev_version_suffix(version):
-    return re.sub(r"(\.?)dev.*", "", version)
+    return _DEV_VERSION_REGEX.sub("", version)
 
 
 def get_min_max_version_and_pip_release(
