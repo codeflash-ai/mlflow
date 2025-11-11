@@ -25,7 +25,7 @@ class Document:
 
         return cls(
             page_content=document.page_content,
-            metadata=deepcopy(document.metadata),
+            metadata=document.metadata.copy(),
             id=id,
         )
 
