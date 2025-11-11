@@ -148,14 +148,15 @@ def is_unprotected_route(path: str) -> bool:
 
 
 def make_basic_auth_response() -> Response:
-    res = make_response(
+    # Create the Response object directly to avoid extra overhead from make_response
+    return Response(
         "You are not authenticated. Please see "
         "https://www.mlflow.org/docs/latest/auth/index.html#authenticating-to-mlflow "
-        "on how to authenticate."
+        "on how to authenticate.",
+        status=401,
+        headers={"WWW-Authenticate": 'Basic realm="mlflow"'},
+        mimetype="text/html"
     )
-    res.status_code = 401
-    res.headers["WWW-Authenticate"] = 'Basic realm="mlflow"'
-    return res
 
 
 def make_forbidden_response() -> Response:
