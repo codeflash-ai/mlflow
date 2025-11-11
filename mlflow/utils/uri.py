@@ -206,14 +206,19 @@ def get_databricks_profile_uri_from_artifact_uri(uri, result_scheme="databricks"
     if it is a proper Databricks profile specification, e.g.
     ``profile@databricks`` or ``secret_scope:key_prefix@databricks``.
     """
-    parsed = urllib.parse.urlparse(uri)
+    # Avoid creating a full ParseResult object unless absolutely necessary by reusing urlsplit (faster/lighter)
+    parsed = urllib.parse.urlsplit(uri)
+    # Fast path: quickly reject most non-matching URIs
     if not parsed.netloc or parsed.hostname != result_scheme:
         return None
     if not parsed.username:  # no profile or scope:key
         return result_scheme  # the default tracking/registry URI
     validate_db_scope_prefix_info(parsed.username, parsed.password)
-    key_prefix = ":" + parsed.password if parsed.password else ""
-    return f"{result_scheme}://" + parsed.username + key_prefix
+    if parsed.password:
+        key_prefix = f":{parsed.password}"
+    else:
+        key_prefix = ""
+    return f"{result_scheme}://{parsed.username}{key_prefix}"
 
 
 def remove_databricks_profile_info_from_artifact_uri(artifact_uri):
@@ -392,13 +397,16 @@ def is_databricks_model_registry_artifacts_uri(artifact_uri):
 
 
 def is_valid_dbfs_uri(uri):
-    parsed = urllib.parse.urlparse(uri)
+    # urlsplit is marginally faster than urlparse and allocates less memory
+    parsed = urllib.parse.urlsplit(uri)
+    # Short-circuit if scheme is not dbfs (avoid calling anything else)
     if parsed.scheme != "dbfs":
         return False
     try:
         db_profile_uri = get_databricks_profile_uri_from_artifact_uri(uri)
     except MlflowException:
         db_profile_uri = None
+    # Fast exit if parsed.netloc is empty (avoid further computation)
     return not parsed.netloc or db_profile_uri is not None
 
 
