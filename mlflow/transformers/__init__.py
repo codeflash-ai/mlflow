@@ -2514,17 +2514,19 @@ class _TransformersWrapper:
         list of dictionaries.
         """
 
-        def fetch_target_key_value(data, key):
-            if isinstance(data[0], dict):
-                return data[0][key]
-            return [item[0][key] for item in data]
-
-        if isinstance(output_data[0], list):
+        # Fast path branching based on type only ONCE
+        first = output_data[0]
+        if isinstance(first, list):
+            # Avoid inner function call for performance; inline logic
+            # Use list comprehension without extra function call
+            # This maintains original behavior & variable names
             return [
-                fetch_target_key_value(collection, target_dict_key) for collection in output_data
+                collection[0][target_dict_key] if isinstance(collection[0], dict)
+                else [item[0][target_dict_key] for item in collection]
+                for collection in output_data
             ]
         else:
-            return [output_data[0][target_dict_key]]
+            return [first[target_dict_key]]
 
     def _parse_question_answer_input(self, data):
         """
