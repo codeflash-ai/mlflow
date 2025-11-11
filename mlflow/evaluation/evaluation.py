@@ -343,23 +343,31 @@ class Evaluation(_MlflowObject):
         Returns:
             dict: The Evaluation object represented as a dictionary.
         """
-        evaluation_dict = {
-            "inputs_id": self.inputs_id,
-            "inputs": self.inputs,
-            "outputs": self.outputs,
-            "request_id": self.request_id,
-            "targets": self.targets,
-            "error_code": self.error_code,
-            "error_message": self.error_message,
-            "assessments": [assess.to_dictionary() for assess in self.assessments]
-            if self.assessments
-            else None,
-            "metrics": [metric.to_dictionary() for metric in self.metrics]
-            if self.metrics
-            else None,
-            "tags": [tag.to_dictionary() for tag in self.tags] if self.tags else None,
-        }
-        return {k: v for k, v in evaluation_dict.items() if v is not None}
+        out = {}
+
+        if self.inputs_id is not None:
+            out["inputs_id"] = self.inputs_id
+        if self.inputs is not None:
+            out["inputs"] = self.inputs
+        if self.outputs is not None:
+            out["outputs"] = self.outputs
+        if self.request_id is not None:
+            out["request_id"] = self.request_id
+        if self.targets is not None:
+            out["targets"] = self.targets
+        if self.error_code is not None:
+            out["error_code"] = self.error_code
+        if self.error_message is not None:
+            out["error_message"] = self.error_message
+
+        if self.assessments:
+            out["assessments"] = [assess.to_dictionary() for assess in self.assessments]
+        if self.metrics:
+            out["metrics"] = [metric.to_dictionary() for metric in self.metrics]
+        if self.tags:
+            out["tags"] = [tag.to_dictionary() for tag in self.tags]
+
+        return out
 
     @classmethod
     def from_dictionary(cls, evaluation_dict: dict[str, Any]):
