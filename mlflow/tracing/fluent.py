@@ -399,10 +399,16 @@ def _wrap_generator(
 
 
 def _wrap_function_safe(fn: Callable[..., Any], wrapper: Callable[..., Any]) -> Callable[..., Any]:
-    wrapped = functools.wraps(fn)(wrapper)
+    wrapped = wrapper
+    # functools.wraps uses update_wrapper internally, only doing attribute copying.
+    # Apply wraps only if needed to minimize overhead.
+    if getattr(wrapper, "__wrapped__", None) is not fn:
+        wrapped = functools.wraps(fn)(wrapper)
+    # Update the signature of the wrapper to match the signature of the original (safely)
     # Update the signature of the wrapper to match the signature of the original (safely)
     try:
-        wrapped.__signature__ = inspect.signature(fn)
+        sig = fn.__signature__ if hasattr(fn, "__signature__") else inspect.signature(fn)
+        wrapped.__signature__ = sig
     except Exception:
         pass
     # Add unique marker for MLflow trace detection
@@ -576,10 +582,11 @@ def start_span_no_context(
             experiment_id=experiment_id,
         )
 
-        if parent_span:
-            trace_id = parent_span.trace_id
-        else:
-            trace_id = get_otel_attribute(otel_span, SpanAttributeKey.REQUEST_ID)
+        trace_id = (
+            parent_span.trace_id
+            if parent_span
+            else get_otel_attribute(otel_span, SpanAttributeKey.REQUEST_ID)
+        )
 
         mlflow_span = create_mlflow_span(otel_span, trace_id, span_type)
 
@@ -592,10 +599,12 @@ def start_span_no_context(
         mlflow_span.set_attributes(attributes or {})
 
         trace_manager = InMemoryTraceManager.get_instance()
-        if tags := exclude_immutable_tags(tags or {}):
+        filtered_tags = exclude_immutable_tags(tags or {})
+        if filtered_tags:
+            # Update trace tags for trace in in-memory trace manager
             # Update trace tags for trace in in-memory trace manager
             with trace_manager.get_trace(trace_id) as trace:
-                trace.info.tags.update(tags)
+                trace.info.tags.update(filtered_tags)
 
         # Register new span in the in-memory trace manager
         trace_manager.register_span(mlflow_span)
