@@ -129,6 +129,8 @@ from mlflow.utils.proto_json_utils import message_to_json, parse_dict
 from mlflow.utils.rest_utils import _REST_API_PATH_PREFIX
 from mlflow.utils.search_utils import SearchUtils
 
+_PROXY_ARTIFACT_PREFIX = f"{_REST_API_PATH_PREFIX}/mlflow-artifacts/artifacts/"
+
 try:
     from flask_wtf.csrf import CSRFProtect
 except ImportError as e:
@@ -503,7 +505,7 @@ LOGGED_MODEL_BEFORE_REQUEST_VALIDATORS = {
 
 
 def _is_proxy_artifact_path(path: str) -> bool:
-    return path.startswith(f"{_REST_API_PATH_PREFIX}/mlflow-artifacts/artifacts/")
+    return path.startswith(_PROXY_ARTIFACT_PREFIX)
 
 
 def _get_proxy_artifact_validator(
