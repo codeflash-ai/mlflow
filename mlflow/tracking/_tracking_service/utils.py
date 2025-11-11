@@ -9,18 +9,16 @@ from typing import Generator
 from mlflow.environment_variables import MLFLOW_TRACKING_URI
 from mlflow.store.db.db_types import DATABASE_ENGINES
 from mlflow.store.tracking import DEFAULT_LOCAL_FILE_AND_ARTIFACT_PATH
-from mlflow.store.tracking.databricks_rest_store import DatabricksTracingRestStore
+from mlflow.store.tracking.databricks_rest_store import \
+    DatabricksTracingRestStore
 from mlflow.store.tracking.rest_store import RestStore
 from mlflow.tracing.provider import reset
 from mlflow.tracking._tracking_service.registry import TrackingStoreRegistry
 from mlflow.utils.credentials import get_default_host_creds
 from mlflow.utils.databricks_utils import get_databricks_host_creds
 from mlflow.utils.file_utils import path_to_local_file_uri
-from mlflow.utils.uri import (
-    _DATABRICKS_UNITY_CATALOG_SCHEME,
-    _OSS_UNITY_CATALOG_SCHEME,
-    get_uri_scheme,
-)
+from mlflow.utils.uri import (_DATABRICKS_UNITY_CATALOG_SCHEME,
+                              _OSS_UNITY_CATALOG_SCHEME, get_uri_scheme)
 
 _logger = logging.getLogger(__name__)
 _tracking_uri = None
@@ -259,7 +257,8 @@ def _get_git_url_if_present(uri):
         # Already a URI in git repo format
         return uri
     try:
-        from git import GitCommandNotFound, InvalidGitRepositoryError, NoSuchPathError, Repo
+        from git import (GitCommandNotFound, InvalidGitRepositoryError,
+                         NoSuchPathError, Repo)
     except ImportError as e:
         _logger.warning(
             "Failed to import Git (the git executable is probably not on your PATH),"
