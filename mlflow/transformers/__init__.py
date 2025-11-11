@@ -1622,12 +1622,30 @@ def _should_add_pyfunc_to_model(pipeline) -> bool:
         "ZeroShotAudioClassificationPipeline",
     ]
 
-    for model_type in exclusion_model_types:
-        if hasattr(transformers, model_type):
-            if isinstance(pipeline.model, getattr(transformers, model_type)):
-                return False
-    if type(pipeline).__name__ in exclusion_pipeline_types:
+    # Cache relevant classes found in transformers to avoid repeated imports and lookups
+    _cached_exclusion_model_classes = getattr(_should_add_pyfunc_to_model, "_cached_exclusion_model_classes", None)
+    if _cached_exclusion_model_classes is None:
+        cached_classes = []
+        for model_type in exclusion_model_types:
+            cls = getattr(transformers, model_type, None)
+            if cls is not None:
+                cached_classes.append(cls)
+        _should_add_pyfunc_to_model._cached_exclusion_model_classes = tuple(cached_classes)
+        _cached_exclusion_model_classes = _should_add_pyfunc_to_model._cached_exclusion_model_classes
+
+    # Fast isinstance check using the cached tuple
+    if isinstance(pipeline.model, _cached_exclusion_model_classes):
         return False
+
+    # Convert list to set for constant time 'in' check
+    exclusion_pipeline_types_set = getattr(_should_add_pyfunc_to_model, "_exclusion_pipeline_types_set", None)
+    if exclusion_pipeline_types_set is None:
+        exclusion_pipeline_types_set = set(exclusion_pipeline_types)
+        _should_add_pyfunc_to_model._exclusion_pipeline_types_set = exclusion_pipeline_types_set
+
+    if type(pipeline).__name__ in exclusion_pipeline_types_set:
+        return False
+
     return True
 
 
