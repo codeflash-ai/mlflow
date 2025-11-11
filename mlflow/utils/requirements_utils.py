@@ -545,13 +545,13 @@ def _strip_local_version_label(version):
         version: A version string to strip.
     """
 
-    class IgnoreLocal(Version):
-        @property
-        def local(self):
-            return None
-
     try:
-        return str(IgnoreLocal(version))
+        version_obj = Version(version)
+        if version_obj.local is not None:
+            parts = str(version_obj).rsplit('+', 1)
+            return parts[0]
+        else:
+            return version
     except InvalidVersion:
         return version
 
