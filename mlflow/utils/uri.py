@@ -11,6 +11,8 @@ from mlflow.protos.databricks_pb2 import INVALID_PARAMETER_VALUE
 from mlflow.utils.os import is_windows
 from mlflow.utils.validation import _validate_db_type_string
 
+_ESCAPE_TABLE = {chr(i): f"%{i:02x}" for i in list(range(32)) + [127]}
+
 _INVALID_DB_URI_MSG = (
     "Please refer to https://mlflow.org/docs/latest/tracking.html#storage for "
     "format specifications."
@@ -517,15 +519,7 @@ def validate_path_is_safe(path):
 
 def _escape_control_characters(text: str) -> str:
     # Method to escape control characters (e.g. \u0017)
-    def escape_char(c):
-        code_point = ord(c)
-
-        # If it's a control character (ASCII 0-31 or 127), escape it
-        if (0 <= code_point <= 31) or (code_point == 127):
-            return f"%{code_point:02x}"
-        return c
-
-    return "".join(escape_char(c) for c in text)
+    return "".join(_ESCAPE_TABLE.get(c, c) for c in text)
 
 
 def validate_query_string(query):
