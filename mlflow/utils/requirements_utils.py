@@ -200,8 +200,8 @@ def _iter_requires(name: str):
 
 def _get_requires(pkg_name):
     norm_pkg_name = _normalize_package_name(pkg_name)
-    for req in _iter_requires(norm_pkg_name):
-        yield _normalize_package_name(req)
+    # Prepare a list for faster repeated normalization
+    return (_normalize_package_name(req) for req in _iter_requires(norm_pkg_name))
 
 
 def _get_requires_recursive(pkg_name, seen_before=None):
@@ -210,14 +210,20 @@ def _get_requires_recursive(pkg_name, seen_before=None):
     package.
     """
     norm_pkg_name = _normalize_package_name(pkg_name)
-    seen_before = seen_before or {norm_pkg_name}
-    for req in _get_requires(pkg_name):
-        # Prevent infinite recursion due to cyclic dependencies
-        if req in seen_before:
-            continue
-        seen_before.add(req)
-        yield req
-        yield from _get_requires_recursive(req, seen_before)
+    if seen_before is None:
+        seen_before = {norm_pkg_name}
+    else:
+        # Avoid set union/copy for performance; mutate in place as before
+        seen_before.add(norm_pkg_name)
+    stack = [norm_pkg_name]
+    while stack:
+        current_pkg = stack.pop()
+        for req in _get_requires(current_pkg):
+            if req in seen_before:
+                continue
+            seen_before.add(req)
+            yield req
+            stack.append(req)
 
 
 def _prune_packages(packages):
@@ -226,7 +232,8 @@ def _prune_packages(packages):
     to `["scikit-learn"]`.
     """
     packages = set(packages)
-    requires = set(_flatten(map(_get_requires_recursive, packages)))
+    # Compute all required packages by all given packages
+    requires = set(_flatten(_get_requires_recursive(pkg) for pkg in packages))
 
     # LlamaIndex have one root "llama-index" package that bundles many sub-packages such as
     # llama-index-llms-openai. Many of those sub-packages are optional, but some are defined
@@ -234,12 +241,14 @@ def _prune_packages(packages):
     # for those sub-packages, resulting in non-deterministic behavior when loading the model
     # later. To address this issue, we keep all sub-packages within the requirements.
     # Ref: https://github.com/run-llama/llama_index/issues/14788#issuecomment-2232107585
-    requires = {req for req in requires if not req.startswith("llama-index-")}
+    if requires:
+        requires = {req for req in requires if not req.startswith("llama-index-")}
 
     # Do not exclude mlflow's dependencies
     # Do not exclude databricks-connect since it conflicts with pyspark during execution time,
     # and we need to determine if pyspark needs to be stripped based on the inferred packages
-    return packages - (requires - set(_get_requires("mlflow")) - {"databricks-connect"})
+    mlflow_requires = set(_get_requires("mlflow"))
+    return packages - (requires - mlflow_requires - {"databricks-connect"})
 
 
 def _run_command(cmd, timeout_seconds, env=None):
