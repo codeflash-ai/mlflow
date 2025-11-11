@@ -129,6 +129,8 @@ from mlflow.utils.proto_json_utils import message_to_json, parse_dict
 from mlflow.utils.rest_utils import _REST_API_PATH_PREFIX
 from mlflow.utils.search_utils import SearchUtils
 
+_ANGLE_BRACKET_PATTERN = re.compile(r"<([^>]+)>")
+
 try:
     from flask_wtf.csrf import CSRFProtect
 except ImportError as e:
@@ -450,7 +452,7 @@ def _re_compile_path(path: str) -> re.Pattern:
     Convert a path with angle brackets to a regex pattern. For example,
     "/api/2.0/experiments/<experiment_id>" becomes "/api/2.0/experiments/([^/]+)".
     """
-    return re.compile(re.sub(r"<([^>]+)>", r"([^/]+)", path))
+    return re.compile(_ANGLE_BRACKET_PATTERN.sub(r"([^/]+)", path))
 
 
 BEFORE_REQUEST_VALIDATORS = {
