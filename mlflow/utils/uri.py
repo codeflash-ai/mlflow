@@ -11,6 +11,8 @@ from mlflow.protos.databricks_pb2 import INVALID_PARAMETER_VALUE
 from mlflow.utils.os import is_windows
 from mlflow.utils.validation import _validate_db_type_string
 
+_UC_VOLUMES_RE = re.compile(r"^/[vV]olumes?/")
+
 _INVALID_DB_URI_MSG = (
     "Please refer to https://mlflow.org/docs/latest/tracking.html#storage for "
     "format specifications."
@@ -108,7 +110,7 @@ def is_fuse_or_uc_volumes_uri(uri):
 
 
 def _is_uc_volumes_path(path: str) -> bool:
-    return re.match(r"^/[vV]olumes?/", path) is not None
+    return _UC_VOLUMES_RE.match(path) is not None
 
 
 def is_uc_volumes_uri(uri: str) -> bool:
