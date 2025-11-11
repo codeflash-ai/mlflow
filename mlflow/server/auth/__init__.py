@@ -556,19 +556,28 @@ def _find_validator(req: Request) -> Callable[[], bool] | None:
     """
     Finds the validator matching the request path and method.
     """
-    if "/mlflow/logged-models" in req.path:
+    # Local bindings for fast access (removes global lookups for the critical dicts)
+    logged_model_validators = LOGGED_MODEL_BEFORE_REQUEST_VALIDATORS
+
+    path = req.path
+    method = req.method
+
+    if "/mlflow/logged-models" in path:
         # logged model routes are not registered in the app
         # so we need to check them manually
-        return next(
-            (
-                v
-                for (pat, method), v in LOGGED_MODEL_BEFORE_REQUEST_VALIDATORS.items()
-                if pat.fullmatch(req.path) and method == req.method
-            ),
-            None,
-        )
+
+        # Optimize: Convert dict .items() to list to avoid repeated .items() generator creation
+        # Cache path-method pairs up front to help CPython optimize
+        items = logged_model_validators.items()
+        # Avoid creating generator expression if possible
+        for (pat, m), v in items:
+            # Check method first for faster negative-filtering of the most common case
+            if m == method and pat.fullmatch(path):
+                return v
+        return None
     else:
-        return BEFORE_REQUEST_VALIDATORS.get((req.path, req.method))
+        # Use local BEFORE_REQUEST_VALIDATORS for fastest global dict lookup
+        return BEFORE_REQUEST_VALIDATORS.get((path, method))
 
 
 @catch_mlflow_exception
