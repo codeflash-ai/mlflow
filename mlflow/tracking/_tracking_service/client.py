@@ -1092,10 +1092,11 @@ class TrackingServiceClient:
         if not run_id:
             raise MlflowException.invalid_parameter_value("run_id cannot be empty")
 
-        if len(trace_ids) > 100:
+        trace_count = len(trace_ids)
+        if trace_count > 100:
             raise MlflowException.invalid_parameter_value(
                 f"Cannot link more than 100 traces to a run in a single request. "
-                f"Provided {len(trace_ids)} traces."
+                f"Provided {trace_count} traces."
             )
 
         return self.store.link_traces_to_run(trace_ids, run_id)
