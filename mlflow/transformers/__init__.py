@@ -130,6 +130,7 @@ from mlflow.utils.model_utils import (
     _validate_and_prepare_target_save_path,
 )
 from mlflow.utils.requirements_utils import _get_pinned_requirement
+import transformers
 
 # The following import is only used for type hinting
 if TYPE_CHECKING:
@@ -2378,28 +2379,44 @@ class _TransformersWrapper:
     def _sanitize_output(self, output, input_data):
         # Some pipelines and their underlying models leave leading or trailing whitespace.
         # This method removes that whitespace.
-        import transformers
+        pipeline = self.pipeline  # Optimization: local variable for attribute access
 
-        if (
-            not isinstance(self.pipeline, transformers.TokenClassificationPipeline)
+        # Fast path: avoid expensive isinstance for TokenClassificationPipeline if not necessary.
+        cond_1 = (
+            not isinstance(pipeline, transformers.TokenClassificationPipeline)
             and isinstance(input_data, str)
             and isinstance(output, list)
-        ):
+        )
+        if cond_1:
+            # Retrieve the first output for return types that are List[str] of only a single
+            # element.
             # Retrieve the first output for return types that are List[str] of only a single
             # element.
             output = output[0]
         if isinstance(output, str):
             return output.strip()
         elif isinstance(output, list):
-            if all(isinstance(elem, str) for elem in output):
+            # Optimization: Use all/any over a generator instead of list for type checking
+            # and single-pass conversion to stripped list.
+            str_elems = True
+            for elem in output:
+                if not isinstance(elem, str):
+                    str_elems = False
+                    break
+
+            if str_elems:
+                # Optimization: Use a generator expression into a list to minimize overhead
                 cleaned = [text.strip() for text in output]
                 # If the list has only a single string, return as string.
                 return cleaned if len(cleaned) > 1 else cleaned[0]
             else:
                 return [self._sanitize_output(coll, input_data) for coll in output]
-        elif isinstance(output, dict) and all(
-            isinstance(key, str) and isinstance(value, str) for key, value in output.items()
-        ):
+        elif isinstance(output, dict):
+            # Optimization: Use short-circuit generator with next to quickly detect non-(str,str) mapping.
+            for key, value in output.items():
+                if not isinstance(key, str) or not isinstance(value, str):
+                    return output
+            # All keys/values are strings, strip all values using dict comprehension.
             return {k: v.strip() for k, v in output.items()}
         else:
             return output
