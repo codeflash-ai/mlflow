@@ -392,6 +392,9 @@ def is_databricks_model_registry_artifacts_uri(artifact_uri):
 
 
 def is_valid_dbfs_uri(uri):
+    # Fast scheme check, cheaper than urlparse if DBFS URIs are rare
+    if not uri.startswith("dbfs:"):
+        return False
     parsed = urllib.parse.urlparse(uri)
     if parsed.scheme != "dbfs":
         return False
@@ -414,10 +417,14 @@ def dbfs_hdfs_uri_to_fuse_path(dbfs_uri):
         A DBFS FUSE-style path, e.g. "/dbfs/my-directory"
 
     """
-    if not is_valid_dbfs_uri(dbfs_uri) and dbfs_uri == posixpath.abspath(dbfs_uri):
+    uri_is_dbfs = dbfs_uri.startswith("dbfs:/")
+    # is_valid_dbfs_uri includes urlparse, so check string pattern first for early skip
+    # If not DBFS and abspath matches, convert
+    if not uri_is_dbfs and not is_valid_dbfs_uri(dbfs_uri) and dbfs_uri == posixpath.abspath(dbfs_uri):
         # Convert posixpaths (e.g. "/tmp/mlflow") to DBFS URIs by adding "dbfs:/" as a prefix
         dbfs_uri = "dbfs:" + dbfs_uri
-    if not dbfs_uri.startswith(_DBFS_HDFS_URI_PREFIX):
+        uri_is_dbfs = dbfs_uri.startswith("dbfs:/")
+    if not uri_is_dbfs:  # Avoid redundant checks or urlparse
         raise MlflowException(
             f"Path '{dbfs_uri}' did not start with expected DBFS URI "
             f"prefix '{_DBFS_HDFS_URI_PREFIX}'",
