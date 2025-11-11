@@ -919,9 +919,7 @@ class TrackingServiceClient:
         order_by: list[dict[str, Any]] | None = None,
         page_token: str | None = None,
     ):
-        if not isinstance(experiment_ids, list) or not all(
-            isinstance(eid, str) for eid in experiment_ids
-        ):
+        if type(experiment_ids) is not list or not all(isinstance(eid, str) for eid in experiment_ids):
             raise MlflowException.invalid_parameter_value(
                 f"experiment_ids must be a list of strings, got {type(experiment_ids)}",
             )
