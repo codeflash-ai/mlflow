@@ -44,6 +44,6 @@ class DatasetInput(_MlflowObject):
 
     def to_dictionary(self):
         return {
-            "dataset": self.dataset.to_dictionary(),
-            "tags": {tag.key: tag.value for tag in self.tags},
+            "dataset": self._dataset.to_dictionary(),
+            "tags": {tag.key: tag.value for tag in self._tags},
         }
