@@ -159,9 +159,7 @@ def make_basic_auth_response() -> Response:
 
 
 def make_forbidden_response() -> Response:
-    res = make_response("Permission denied")
-    res.status_code = 403
-    return res
+    return make_response("Permission denied", 403)
 
 
 def _get_request_param(param: str) -> str:
