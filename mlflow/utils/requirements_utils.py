@@ -291,7 +291,14 @@ def _get_installed_version(package: str, module: str | None = None) -> str:
         # 1.9.0+cu102
         # $ python -c "import importlib_metadata; print(importlib_metadata.version('torch'))"
         # 1.9.0
-        version = __import__(module or package).__version__
+        mod_name = module or package
+        mod = sys.modules.get(mod_name)
+        if mod is None:
+            mod = __import__(mod_name)
+        version = mod.__version__
+
+    # Strip the suffix from `dev` versions of PySpark, which are not available for installation
+    # from Anaconda or PyPI
 
     # Strip the suffix from `dev` versions of PySpark, which are not available for installation
     # from Anaconda or PyPI
