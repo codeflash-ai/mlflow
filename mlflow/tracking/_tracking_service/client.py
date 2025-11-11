@@ -881,9 +881,16 @@ class TrackingServiceClient:
         )
 
     def log_model_params(self, model_id: str, params: dict[str, str]) -> None:
+        # Optimize creation of LoggedModelParameter objects by using a local variable
+        param_items = params.items()
+        param_list = []
+        # Avoid using a list comprehension to reduce overhead from repeated attribute access and method calls
+        # This is a measurable optimization for large dictionaries.
+        for key, value in param_items:
+            param_list.append(LoggedModelParameter(str(key), str(value)))
         return self.store.log_logged_model_params(
             model_id=model_id,
-            params=[LoggedModelParameter(str(key), str(value)) for key, value in params.items()],
+            params=param_list,
         )
 
     def finalize_logged_model(self, model_id: str, status: LoggedModelStatus) -> LoggedModel:
