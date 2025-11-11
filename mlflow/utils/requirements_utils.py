@@ -11,7 +11,7 @@ import re
 import subprocess
 import sys
 import tempfile
-from itertools import chain, filterfalse
+from itertools import chain
 from pathlib import Path
 from threading import Timer
 from typing import NamedTuple
@@ -121,20 +121,14 @@ def _parse_requirements(requirements, is_constraint, base_dir=None):
         else:
             base_dir = os.getcwd()
 
-    lines = map(str.strip, requirements)
-    lines = map(_strip_inline_comment, lines)
-    lines = _join_continued_lines(lines)
-    lines = filterfalse(_is_comment, lines)
-    lines = filterfalse(_is_empty, lines)
-
-    for line in lines:
-        if _is_requirements_file(line):
+    for line in _process_lines(requirements):
+        if line.startswith("-r ") or line.startswith("--requirement "):
             req_file = line.split(maxsplit=1)[1]
             # If `req_file` is an absolute path, `os.path.join` returns `req_file`:
             # https://docs.python.org/3/library/os.path.html#os.path.join
             abs_path = os.path.join(base_dir, req_file)
             yield from _parse_requirements(abs_path, is_constraint=False)
-        elif _is_constraints_file(line):
+        elif line.startswith("-c ") or line.startswith("--constraint "):
             req_file = line.split(maxsplit=1)[1]
             abs_path = os.path.join(base_dir, req_file)
             yield from _parse_requirements(abs_path, is_constraint=True)
@@ -701,3 +695,25 @@ def warn_dependency_requirement_mismatches(model_requirements: list[str]):
             "mismatches. Set logging level to DEBUG to see the full traceback."
         )
         _logger.debug("", exc_info=True)
+
+
+def _process_lines(requirements):
+    # Consolidates stripping, inline comment removal, joined continued lines, and filtering
+    continued_line_parts = []
+    for l in requirements:
+        line = l.strip()
+        if not line or line.startswith("#"):
+            continue
+        if " #" in line:
+            line = line[: line.find(" #")].rstrip()
+        if line.endswith("\\"):
+            continued_line_parts.append(line.rstrip("\\"))
+            continue
+        if continued_line_parts:
+            continued_line_parts.append(line)
+            yield "".join(continued_line_parts)
+            continued_line_parts.clear()
+        else:
+            yield line
+    if continued_line_parts:
+        yield "".join(continued_line_parts)
