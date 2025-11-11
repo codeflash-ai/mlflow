@@ -2977,12 +2977,30 @@ def _validate_prompt_template(prompt_template):
             INVALID_PARAMETER_VALUE,
         )
 
-    format_args = [
-        tup[1] for tup in string.Formatter().parse(prompt_template) if tup[1] is not None
-    ]
+    # Fast path for exactly '{prompt}' - this avoids parsing entirely
+    if prompt_template == "{prompt}":
+        return
 
-    # expect there to only be one format arg, and for that arg to be "prompt"
-    if format_args != ["prompt"]:
+    # Generator for parsing fields, avoiding list allocation and short-circuiting if >1 or not 'prompt'
+    formatter = string.Formatter()
+    found_arg = False
+    for _, field_name, _, _ in formatter.parse(prompt_template):
+        if field_name is not None:
+            if found_arg:
+                # Second argument found
+                raise MlflowException.invalid_parameter_value(
+                    "Argument `prompt_template` must be a string with a single format arg, 'prompt'. "
+                    "For example: 'Answer the following question in a friendly tone. Q: {prompt}. A:'\n"
+                    f"Received {prompt_template}. "
+                )
+            if field_name != "prompt":
+                raise MlflowException.invalid_parameter_value(
+                    "Argument `prompt_template` must be a string with a single format arg, 'prompt'. "
+                    "For example: 'Answer the following question in a friendly tone. Q: {prompt}. A:'\n"
+                    f"Received {prompt_template}. "
+                )
+            found_arg = True
+    if not found_arg:
         raise MlflowException.invalid_parameter_value(
             "Argument `prompt_template` must be a string with a single format arg, 'prompt'. "
             "For example: 'Answer the following question in a friendly tone. Q: {prompt}. A:'\n"
