@@ -2707,16 +2707,36 @@ class _TransformersWrapper:
             # NB: applying a short-circuit return here to not incur runtime overhead with
             # type validation if the input is not a list
             return data
-        elif not all(isinstance(value, dict) for value in data):
+
+        # Avoid calling all() twice.
+        # Fast-path: If first element is not dict, short-circuit.
+        if not data or not isinstance(data[0], dict):
             return data
-        else:
-            parsed_data = []
-            for entry in data:
-                if all(isinstance(value, np.ndarray) for value in entry.values()):
-                    parsed_data.append({key: value.tolist() for key, value in entry.items()})
-                else:
-                    parsed_data.append(entry)
-            return parsed_data
+        # If any element is not dict, short-circuit.
+        for value in data[1:]:
+            if not isinstance(value, dict):
+                return data
+
+        # Precompute entry.values() as a list for each entry and store results.
+        parsed_data = []
+        for entry in data:
+            values = entry.values()
+            # Use all() with np.ndarray type, minimize function calls
+            if values:
+                is_all_ndarray = True
+                for value in values:
+                    if not isinstance(value, np.ndarray):
+                        is_all_ndarray = False
+                        break
+            else:
+                is_all_ndarray = False
+
+            if is_all_ndarray:
+                # Use list comprehension, which is already fast
+                parsed_data.append({key: value.tolist() for key, value in entry.items()})
+            else:
+                parsed_data.append(entry)
+        return parsed_data
 
     @staticmethod
     def is_base64_image(image):
