@@ -44,8 +44,8 @@ class RunInputs(_MlflowObject):
 
     def to_dictionary(self) -> dict[str, Any]:
         return {
-            "model_inputs": self.model_inputs,
-            "dataset_inputs": [d.to_dictionary() for d in self.dataset_inputs],
+            "model_inputs": self._model_inputs,
+            "dataset_inputs": [d.to_dictionary() for d in self._dataset_inputs],
         }
 
     @classmethod
