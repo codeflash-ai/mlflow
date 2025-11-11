@@ -529,6 +529,8 @@ def _get_local_version_label(version):
     Args:
         version: A version string.
     """
+    if isinstance(version, str) and version.find('+') == -1:
+        return None
     try:
         return Version(version).local
     except InvalidVersion:
