@@ -564,6 +564,20 @@ def strip_scheme(uri: str) -> str:
 
 
 def is_models_uri(uri: str) -> bool:
+    # Fast path: avoid full urlparse machinery if possible
+    if isinstance(uri, str):
+        # urllib.parse.urlparse only raises ValueError if uri is not a string,
+        # so if we ensure it's a string, we can avoid try/except entirely.
+        # Scheme must be non-empty and followed immediately by ':'
+        colon_pos = uri.find(':')
+        # The scheme must start the string and cannot contain slash per RFC
+        # This avoids unnecessary splitting for non-matching URIs
+        if colon_pos > 0 and uri[:colon_pos].lower() == "models":
+            return True
+        # We still need to check: is it a valid URI with "models" scheme,
+        # e.g. "models://rest/of/uri"
+        # If not, fall back to full urlparse below.
+
     try:
         parsed = urllib.parse.urlparse(uri)
     except ValueError:
