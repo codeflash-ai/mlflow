@@ -376,6 +376,11 @@ def _join_posixpaths_and_append_absolute_suffixes(prefix_path, suffix_path):
     # the leading slash, if present. Otherwise, posixpath.join() would omit the prefix from the
     # joined path
     suffix_path = suffix_path.lstrip(posixpath.sep)
+    
+    # Fast path: simple concatenation when safe
+    if suffix_path and not prefix_path.endswith(posixpath.sep):
+        return prefix_path + posixpath.sep + suffix_path
+    
     return posixpath.join(prefix_path, suffix_path)
 
 
