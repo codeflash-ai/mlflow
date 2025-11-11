@@ -108,7 +108,20 @@ def is_fuse_or_uc_volumes_uri(uri):
 
 
 def _is_uc_volumes_path(path: str) -> bool:
-    return re.match(r"^/[vV]olumes?/", path) is not None
+    # Fast-path without regex: match required prefix, case insensitive only for 'v'
+    if path.startswith('/V') or path.startswith('/v'):
+        # avoid regex and efficiently validate further using indexing
+        # path length must be sufficient for '/v'/'/V' + 'olume'
+        if len(path) >= 8 and path[2:7] == 'olume':
+            # check for optional 's'
+            if path[7] == 's':
+                # '/volumes' or '/Volumes'
+                # Next char should be '/' to match the pattern
+                return len(path) > 8 and path[8] == '/'
+            elif path[7] == '/':
+                # '/volume/' or '/Volume/'
+                return True
+    return False
 
 
 def is_uc_volumes_uri(uri: str) -> bool:
