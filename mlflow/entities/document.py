@@ -31,12 +31,10 @@ class Document:
 
     @classmethod
     def from_llama_index_node_with_score(cls, node_with_score):
-        metadata = {
-            "score": node_with_score.get_score(),
-            # update after setting score so that it can be
-            # overridden if the user wishes to do so
-            **deepcopy(node_with_score.metadata),
-        }
+        metadata = node_with_score.metadata.copy()
+        metadata["score"] = node_with_score.get_score()
+        # update after setting score so that it can be
+        # overridden if the user wishes to do so
 
         return cls(
             page_content=node_with_score.get_content(),
