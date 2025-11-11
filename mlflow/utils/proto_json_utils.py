@@ -143,7 +143,8 @@ def milliseconds_to_proto_timestamp(milliseconds: int) -> str:
     Converts milliseconds to a timestamp string (e.g. "2025-04-15T08:49:18.699Z").
     """
     t = Timestamp()
-    t.FromMilliseconds(milliseconds)
+    t.seconds = milliseconds // 1000
+    t.nanos = (milliseconds % 1000) * 1_000_000
     return t.ToJsonString()
 
 
