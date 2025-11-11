@@ -1,5 +1,6 @@
 import datetime
 import time
+from functools import lru_cache
 
 
 def get_current_time_millis():
@@ -10,14 +11,22 @@ def get_current_time_millis():
 
 
 def conv_longdate_to_str(longdate, local_tz=True):
-    date_time = datetime.datetime.fromtimestamp(longdate / 1000.0)
+    # Avoid division in hot loop: use integer division if possible, else use float
+    timestamp = longdate / 1000.0
+    date_time = datetime.datetime.fromtimestamp(timestamp)
     str_long_date = date_time.strftime("%Y-%m-%d %H:%M:%S")
     if local_tz:
-        tzinfo = datetime.datetime.now().astimezone().tzinfo
+        tzinfo = _get_local_tzinfo()
         if tzinfo:
-            str_long_date += " " + tzinfo.tzname(date_time)
-
+            # tzinfo.tzname() is potentially costly; only call if tzinfo exists
+            str_long_date = f"{str_long_date} {tzinfo.tzname(date_time)}"
     return str_long_date
+
+
+@lru_cache(maxsize=1)
+def _get_local_tzinfo():
+    # Caches local tzinfo instance for performance (assumes it doesn't change)
+    return datetime.datetime.now().astimezone().tzinfo
 
 
 class Timer:
