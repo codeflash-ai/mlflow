@@ -540,6 +540,8 @@ def _decode(url):
     # Keep decoding until the url stops changing (with a max of 10 iterations)
     for _ in range(10):
         decoded = urllib.parse.unquote(url)
+        if decoded == url:
+            return url
         parsed = urllib.parse.urlunparse(urllib.parse.urlparse(decoded))
         if parsed == url:
             return url
