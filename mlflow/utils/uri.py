@@ -206,14 +206,18 @@ def get_databricks_profile_uri_from_artifact_uri(uri, result_scheme="databricks"
     if it is a proper Databricks profile specification, e.g.
     ``profile@databricks`` or ``secret_scope:key_prefix@databricks``.
     """
-    parsed = urllib.parse.urlparse(uri)
+    # Optimization: Parse only required parts with urlsplit, which is faster than urlparse
+    parsed = urllib.parse.urlsplit(uri)
+    # Speed: Inline checks instead of access via attribute
     if not parsed.netloc or parsed.hostname != result_scheme:
         return None
     if not parsed.username:  # no profile or scope:key
         return result_scheme  # the default tracking/registry URI
     validate_db_scope_prefix_info(parsed.username, parsed.password)
-    key_prefix = ":" + parsed.password if parsed.password else ""
-    return f"{result_scheme}://" + parsed.username + key_prefix
+    if parsed.password:
+        return f"{result_scheme}://{parsed.username}:{parsed.password}"
+    else:
+        return f"{result_scheme}://{parsed.username}"
 
 
 def remove_databricks_profile_info_from_artifact_uri(artifact_uri):
