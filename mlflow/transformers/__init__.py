@@ -130,6 +130,7 @@ from mlflow.utils.model_utils import (
     _validate_and_prepare_target_save_path,
 )
 from mlflow.utils.requirements_utils import _get_pinned_requirement
+from functools import lru_cache
 
 # The following import is only used for type hinting
 if TYPE_CHECKING:
@@ -1668,11 +1669,13 @@ def _is_conversational_pipeline(pipeline):
     """
     Checks if the pipeline is a ConversationalPipeline.
     """
-    if cp := _try_import_conversational_pipeline():
+    cp = _try_import_conversational_pipeline()
+    if cp:
         return isinstance(pipeline, cp)
     return False
 
 
+@lru_cache(maxsize=1)
 def _try_import_conversational_pipeline():
     """
     Try importing ConversationalPipeline because for version > 4.41.2
