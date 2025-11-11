@@ -158,8 +158,8 @@ class RegisteredModelPermission:
 
     @classmethod
     def from_json(cls, dictionary):
-        return cls(
-            name=dictionary["name"],
-            user_id=dictionary["user_id"],
-            permission=dictionary["permission"],
-        )
+        # Localize lookups for minimal dict access (faster than repeating __getitem__)
+        name = dictionary["name"]
+        user_id = dictionary["user_id"]
+        permission = dictionary["permission"]
+        return cls(name, user_id, permission)
