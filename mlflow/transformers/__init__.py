@@ -130,11 +130,17 @@ from mlflow.utils.model_utils import (
     _validate_and_prepare_target_save_path,
 )
 from mlflow.utils.requirements_utils import _get_pinned_requirement
+import transformers
 
 # The following import is only used for type hinting
 if TYPE_CHECKING:
     import torch
     from transformers import Pipeline
+
+_AUTOSPEECH_AUDIO_PIPELINE_TYPES = (
+    transformers.AutomaticSpeechRecognitionPipeline,
+    transformers.AudioClassificationPipeline,
+)
 
 # Transformers pipeline complains that PeftModel is not supported for any task type, even
 # when the wrapped model is supported. As MLflow require users to use pipeline for logging,
@@ -1787,7 +1793,6 @@ class _TransformersWrapper:
             return model_config
 
     def _validate_model_config_and_return_output(self, data, model_config, return_tensors=False):
-        import transformers
 
         if return_tensors:
             model_config["return_tensors"] = True
@@ -1810,13 +1815,8 @@ class _TransformersWrapper:
                     "The params provided to the `predict` method are not valid "
                     f"for pipeline {type(self.pipeline).__name__}.",
                 ) from e
-            if isinstance(
-                self.pipeline,
-                (
-                    transformers.AutomaticSpeechRecognitionPipeline,
-                    transformers.AudioClassificationPipeline,
-                ),
-            ) and (
+            if isinstance(self.pipeline, _AUTOSPEECH_AUDIO_PIPELINE_TYPES) and (
+                # transformers <= 4.33.3
                 # transformers <= 4.33.3
                 "Malformed soundfile" in str(e)
                 # transformers > 4.33.3
