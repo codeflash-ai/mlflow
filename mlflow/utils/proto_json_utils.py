@@ -5,7 +5,6 @@ import json
 import os
 from collections import defaultdict
 from copy import deepcopy
-from functools import partial
 from json import JSONEncoder
 from typing import Any
 
@@ -31,39 +30,44 @@ from mlflow.protos.databricks_pb2 import BAD_REQUEST
 
 def _mark_int64_fields_for_proto_maps(proto_map, value_field_type):
     """Converts a proto map to JSON, preserving only int64-related fields."""
-    json_dict = {}
-    for key, value in proto_map.items():
-        # The value of a protobuf map can only be a scalar or a message (not a map or repeated
-        # field).
-        if value_field_type == FieldDescriptor.TYPE_MESSAGE:
-            json_dict[key] = _mark_int64_fields(value)
-        elif value_field_type in _PROTOBUF_INT64_FIELDS:
-            json_dict[key] = int(value)
-        elif isinstance(key, int):
-            json_dict[key] = value
-    return json_dict
+    # Use local variables for performance in hot loop
+    TYPE_MESSAGE = FieldDescriptor.TYPE_MESSAGE
+    int64_fields = _PROTOBUF_INT64_FIELDS
+    mark_int64_fields = _mark_int64_fields
+
+    if value_field_type == TYPE_MESSAGE:
+        # Only run the check once, and use dict comprehension for performance
+        return {key: mark_int64_fields(value) for key, value in proto_map.items()}
+    elif value_field_type in int64_fields:
+        # Use builtin int directly in comprehension
+        return {key: int(value) for key, value in proto_map.items()}
+    else:
+        # Filter only integer keys, which matches original behavior
+        return {key: value for key, value in proto_map.items() if isinstance(key, int)}
 
 
 def _mark_int64_fields(proto_message):
     """Converts a proto message to JSON, preserving only int64-related fields."""
+    # Cache lookups and functions for hot path
+    TYPE_MESSAGE = FieldDescriptor.TYPE_MESSAGE
+    int64_fields = _PROTOBUF_INT64_FIELDS
+    mark_int64_fields = _mark_int64_fields
+
     json_dict = {}
     for field, value in proto_message.ListFields():
         if (
-            # These three conditions check if this field is a protobuf map.
-            # See the official implementation: https://bit.ly/3EMx1rl
-            field.type == FieldDescriptor.TYPE_MESSAGE
+            field.type == TYPE_MESSAGE
             and field.message_type.has_options
             and field.message_type.GetOptions().map_entry
         ):
-            # Deal with proto map fields separately in another function.
-            json_dict[field.name] = _mark_int64_fields_for_proto_maps(
-                value, field.message_type.fields_by_name["value"].type
-            )
+            # Avoid repeated lookup of fields_by_name["value"]
+            value_field_type = field.message_type.fields_by_name["value"].type
+            json_dict[field.name] = _mark_int64_fields_for_proto_maps(value, value_field_type)
             continue
 
-        if field.type == FieldDescriptor.TYPE_MESSAGE:
-            ftype = partial(_mark_int64_fields)
-        elif field.type in _PROTOBUF_INT64_FIELDS:
+        if field.type == TYPE_MESSAGE:
+            ftype = mark_int64_fields
+        elif field.type in int64_fields:
             ftype = int
         else:
             # Skip all non-int64 fields.
@@ -75,7 +79,15 @@ def _mark_int64_fields(proto_message):
         except AttributeError:
             is_repeated = field.label == FieldDescriptor.LABEL_REPEATED
 
-        json_dict[field.name] = [ftype(v) for v in value] if is_repeated else ftype(value)
+        # Optimize: avoid comprehension function lookup in every iteration.
+        if is_repeated:
+            if ftype is int:
+                # Inline int for repeated fields for better performance
+                json_dict[field.name] = [int(v) for v in value]
+            else:
+                json_dict[field.name] = [mark_int64_fields(v) for v in value]
+        else:
+            json_dict[field.name] = ftype(value)
     return json_dict
 
 
