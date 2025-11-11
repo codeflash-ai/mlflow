@@ -50,7 +50,7 @@ def _strip_inline_comment(line):
 
 
 def _is_requirements_file(line):
-    return line.startswith("-r ") or line.startswith("--requirement ")
+    return line.startswith(("--requirement ", "-r "))
 
 
 def _is_constraints_file(line):
