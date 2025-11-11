@@ -177,7 +177,10 @@ def _get_request_param(param: str) -> str:
             BAD_REQUEST,
         )
 
-    args = args | (request.view_args or {})
+    view_args = request.view_args
+    if view_args:
+        args = args | view_args
+    
     if param not in args:
         # Special handling for run_id
         if param == "run_id":
