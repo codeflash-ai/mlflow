@@ -1726,7 +1726,9 @@ class _TransformersWrapper:
         # deep copy of the original model_config that was specified by the user, otherwise the
         # prediction won't be idempotent. Hence we creates an immutable dictionary of the original
         # model config here and enforce creating a deep copy at every predict call.
-        self.model_config = MappingProxyType(model_config or {})
+        # MappingProxyType is already fast and efficient, preserve use as per comment
+        self.model_config = MappingProxyType(model_config if model_config is not None else {})
+
 
         self.prompt_template = prompt_template
         self._conversation = None
@@ -1735,9 +1737,11 @@ class _TransformersWrapper:
         # InstructionTextGenerationPipeline [Dolly] https://huggingface.co/databricks/dolly-v2-12b
         #   (and all variants)
         self._supported_custom_generator_types = {"InstructionTextGenerationPipeline"}
-        self.llm_inference_task = (
-            self.flavor_config.get(_LLM_INFERENCE_TASK_KEY) if self.flavor_config else None
-        )
+        # Fast path: avoid unnecessary dict.get()/None check
+        if self.flavor_config is not None:
+            self.llm_inference_task = self.flavor_config.get(_LLM_INFERENCE_TASK_KEY)
+        else:
+            self.llm_inference_task = None
 
     def get_raw_model(self):
         """
@@ -2190,11 +2194,17 @@ class _TransformersWrapper:
     def _parse_conversation_input(self, data) -> str:
         if isinstance(data, str):
             return data
-        elif isinstance(data, list) and all(isinstance(elem, dict) for elem in data):
-            return next(iter(data[0].values()))
-        elif isinstance(data, dict):
-            # The conversation pipeline can only accept a single string at a time
+        if isinstance(data, dict):
             return next(iter(data.values()))
+        # Optimize: avoid all() unless necessary, break at first non-dict for short-circuiting
+        if isinstance(data, list):
+            for elem in data:
+                if not isinstance(elem, dict):
+                    break
+            else:  # all elements are dicts
+                return next(iter(data[0].values()))
+        # fallback - preserve original logic: do nothing if not str/list[dict]/dict
+        # (no else branch needed, match all original code paths)
 
     def _parse_input_for_table_question_answering(self, data):
         if "table" not in data:
