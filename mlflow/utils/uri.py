@@ -129,6 +129,14 @@ def is_databricks_unity_catalog_uri(uri):
 
 
 def is_oss_unity_catalog_uri(uri):
+    # Fast path for 'uc:' URIs, which avoids full urlparse
+    if isinstance(uri, str) and uri.startswith("uc:"):
+        # Verify this is the URI scheme and not e.g. a username of 'uc'
+        colon_index = uri.find(':')
+        # scheme must be immediately followed by either nothing, /, or //
+        if colon_index == 2 and (len(uri) == 3 or uri[3] in ('/',)):
+            return True
+    # Fallback for other cases
     scheme = urllib.parse.urlparse(uri).scheme
     return scheme == "uc"
 
