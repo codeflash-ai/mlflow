@@ -124,8 +124,8 @@ def is_valid_uc_volumes_uri(uri: str) -> bool:
 
 
 def is_databricks_unity_catalog_uri(uri):
-    scheme = urllib.parse.urlparse(uri).scheme
-    return _DATABRICKS_UNITY_CATALOG_SCHEME in (scheme, uri)
+    scheme = urllib.parse.urlsplit(uri).scheme
+    return scheme == _DATABRICKS_UNITY_CATALOG_SCHEME or uri == _DATABRICKS_UNITY_CATALOG_SCHEME
 
 
 def is_oss_unity_catalog_uri(uri):
