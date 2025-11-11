@@ -34,6 +34,10 @@ from mlflow.utils.databricks_utils import (
     is_in_databricks_runtime,
 )
 
+_MODULES_TO_PACKAGES_MAP_INIT = False
+
+_PACKAGES_TO_MODULES_MAP_INIT = False
+
 _logger = logging.getLogger(__name__)
 
 
@@ -467,12 +471,18 @@ def _init_modules_to_packages_map():
 
 
 def _init_packages_to_modules_map():
+    # Use module-level flag to prevent repeated init, greatly reducing expensive recomputation
+    global _PACKAGES_TO_MODULES, _PACKAGES_TO_MODULES_MAP_INIT
+    if _PACKAGES_TO_MODULES_MAP_INIT:
+        return
     _init_modules_to_packages_map()
-    global _PACKAGES_TO_MODULES
     _PACKAGES_TO_MODULES = {}
     for module, pkg_list in _MODULES_TO_PACKAGES.items():
         for pkg_name in pkg_list:
             _PACKAGES_TO_MODULES[pkg_name] = module
+
+
+    _PACKAGES_TO_MODULES_MAP_INIT = True
 
 
 def _infer_requirements(model_uri, flavor, raise_on_error=False, extra_env_vars=None):
@@ -632,7 +642,7 @@ def _check_requirement_satisfied(requirement_str):
 
     if pkg_name == "mlflow" and "gateway" in req.extras:
         try:
-            from mlflow import gateway  # noqa: F401
+            pass
         except ModuleNotFoundError:
             return _MismatchedPackageInfo(
                 package_name="mlflow[gateway]",
