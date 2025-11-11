@@ -129,6 +129,12 @@ from mlflow.utils.proto_json_utils import message_to_json, parse_dict
 from mlflow.utils.rest_utils import _REST_API_PATH_PREFIX
 from mlflow.utils.search_utils import SearchUtils
 
+_PROXY_ARTIFACT_VALIDATOR_METHODS = {
+    "GET": lambda: _get_permission_from_experiment_id_artifact_proxy().can_read,  # Download
+    "PUT": lambda: _get_permission_from_experiment_id_artifact_proxy().can_update,  # Upload
+    "DELETE": lambda: _get_permission_from_experiment_id_artifact_proxy().can_manage,  # Delete
+}
+
 try:
     from flask_wtf.csrf import CSRFProtect
 except ImportError as e:
@@ -512,11 +518,8 @@ def _get_proxy_artifact_validator(
     if view_args is None:
         return validate_can_read_experiment_artifact_proxy  # List
 
-    return {
-        "GET": validate_can_read_experiment_artifact_proxy,  # Download
-        "PUT": validate_can_update_experiment_artifact_proxy,  # Upload
-        "DELETE": validate_can_delete_experiment_artifact_proxy,  # Delete
-    }.get(method)
+    # Utilize pre-built dictionary instead of constructing anew on every call
+    return _PROXY_ARTIFACT_VALIDATOR_METHODS.get(method)
 
 
 def authenticate_request() -> Authorization | Response:
