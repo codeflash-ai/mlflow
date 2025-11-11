@@ -4,6 +4,7 @@ import posixpath
 import re
 import urllib.parse
 import uuid
+from functools import lru_cache
 from typing import Any
 
 from mlflow.exceptions import MlflowException
@@ -258,13 +259,14 @@ def extract_db_type_from_uri(db_uri):
     Parse the specified DB URI to extract the database type. Confirm the database type is
     supported. If a driver is specified, confirm it passes a plausible regex.
     """
-    scheme = urllib.parse.urlparse(db_uri).scheme
+    # Use cached urlparse to avoid recomputation
+    scheme = _cached_urlparse(db_uri).scheme
     scheme_plus_count = scheme.count("+")
 
     if scheme_plus_count == 0:
         db_type = scheme
     elif scheme_plus_count == 1:
-        db_type, _ = scheme.split("+")
+        db_type, _ = scheme.split("+", 1)
     else:
         error_msg = f"Invalid database URI: '{db_uri}'. {_INVALID_DB_URI_MSG}"
         raise MlflowException(error_msg, INVALID_PARAMETER_VALUE)
@@ -277,8 +279,11 @@ def extract_db_type_from_uri(db_uri):
 def get_uri_scheme(uri_or_path):
     from mlflow.store.db.db_types import DATABASE_ENGINES
 
-    scheme = urllib.parse.urlparse(uri_or_path).scheme
-    if any(scheme.lower().startswith(db) for db in DATABASE_ENGINES):
+    # Use cached urlparse to avoid recomputation
+    scheme = _cached_urlparse(uri_or_path).scheme
+    scheme_lower = scheme.lower()
+    # Convert DATABASE_ENGINES to tuple for efficient startswith checks
+    if scheme_lower.startswith(tuple(DATABASE_ENGINES)):
         return extract_db_type_from_uri(uri_or_path)
     return scheme
 
@@ -570,3 +575,8 @@ def is_models_uri(uri: str) -> bool:
         return False
 
     return parsed.scheme == "models"
+
+
+@lru_cache(maxsize=128)
+def _cached_urlparse(uri: str):
+    return urllib.parse.urlparse(uri)
