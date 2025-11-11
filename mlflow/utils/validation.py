@@ -13,11 +13,9 @@ from typing import Any
 from mlflow.entities import Dataset, DatasetInput, InputTag, Param, RunTag
 from mlflow.entities.model_registry.prompt_version import PROMPT_TEXT_TAG_KEY
 from mlflow.entities.webhook import WebhookEvent
-from mlflow.environment_variables import (
-    _MLFLOW_WEBHOOK_ALLOWED_SCHEMES,
-    MLFLOW_ARTIFACT_LOCATION_MAX_LENGTH,
-    MLFLOW_TRUNCATE_LONG_VALUES,
-)
+from mlflow.environment_variables import (_MLFLOW_WEBHOOK_ALLOWED_SCHEMES,
+                                          MLFLOW_ARTIFACT_LOCATION_MAX_LENGTH,
+                                          MLFLOW_TRUNCATE_LONG_VALUES)
 from mlflow.exceptions import MlflowException
 from mlflow.protos.databricks_pb2 import INVALID_PARAMETER_VALUE
 from mlflow.utils.os import is_windows

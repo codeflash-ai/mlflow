@@ -259,12 +259,11 @@ def extract_db_type_from_uri(db_uri):
     supported. If a driver is specified, confirm it passes a plausible regex.
     """
     scheme = urllib.parse.urlparse(db_uri).scheme
-    scheme_plus_count = scheme.count("+")
-
-    if scheme_plus_count == 0:
+    plus_count = scheme.count("+")
+    if plus_count == 0:
         db_type = scheme
-    elif scheme_plus_count == 1:
-        db_type, _ = scheme.split("+")
+    elif plus_count == 1:
+        db_type, _ = scheme.split("+", 1)
     else:
         error_msg = f"Invalid database URI: '{db_uri}'. {_INVALID_DB_URI_MSG}"
         raise MlflowException(error_msg, INVALID_PARAMETER_VALUE)
