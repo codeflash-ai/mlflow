@@ -18,29 +18,42 @@ from google.protobuf.timestamp_pb2 import Timestamp
 
 from mlflow.exceptions import MlflowException
 
-_PROTOBUF_INT64_FIELDS = [
+_PROTOBUF_INT64_FIELDS = {
     FieldDescriptor.TYPE_INT64,
     FieldDescriptor.TYPE_UINT64,
     FieldDescriptor.TYPE_FIXED64,
     FieldDescriptor.TYPE_SFIXED64,
     FieldDescriptor.TYPE_SINT64,
-]
+}
 
 from mlflow.protos.databricks_pb2 import BAD_REQUEST
 
 
 def _mark_int64_fields_for_proto_maps(proto_map, value_field_type):
     """Converts a proto map to JSON, preserving only int64-related fields."""
+    # Local ref for speed
+    int64_types = _PROTOBUF_INT64_FIELDS
+    TYPE_MESSAGE = FieldDescriptor.TYPE_MESSAGE
     json_dict = {}
-    for key, value in proto_map.items():
-        # The value of a protobuf map can only be a scalar or a message (not a map or repeated
-        # field).
-        if value_field_type == FieldDescriptor.TYPE_MESSAGE:
-            json_dict[key] = _mark_int64_fields(value)
-        elif value_field_type in _PROTOBUF_INT64_FIELDS:
+
+    # Avoid repeatedly doing lookups and checks inside the loop
+    is_value_message = value_field_type == TYPE_MESSAGE
+    is_value_int64 = value_field_type in int64_types
+
+    # Tight loop for dict construction
+    if is_value_message:
+        # Avoid redundant variable lookup in loop
+        mark_int64_fields = _mark_int64_fields
+        for key, value in proto_map.items():
+            json_dict[key] = mark_int64_fields(value)
+    elif is_value_int64:
+        for key, value in proto_map.items():
             json_dict[key] = int(value)
-        elif isinstance(key, int):
-            json_dict[key] = value
+    else:
+        for key, value in proto_map.items():
+            if isinstance(key, int):
+                json_dict[key] = value
+
     return json_dict
 
 
