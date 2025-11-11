@@ -11,6 +11,18 @@ from mlflow.protos.databricks_pb2 import INVALID_PARAMETER_VALUE
 from mlflow.utils.os import is_windows
 from mlflow.utils.validation import _validate_db_type_string
 
+_SLASHES_RE = re.compile(r"/+")
+
+_PREFIXES = [
+    "/dbfs/",
+    "dbfs:/",
+    "/volumes/",
+    "/models/",
+    "/.fuse-mounts/",
+]
+
+_PREFIXES_LOWER = tuple(prefix.lower() for prefix in _PREFIXES)
+
 _INVALID_DB_URI_MSG = (
     "Please refer to https://mlflow.org/docs/latest/tracking.html#storage for "
     "format specifications."
@@ -94,17 +106,9 @@ def is_fuse_or_uc_volumes_uri(uri):
     Multiple directory paths are collapsed into a single designator for root path validation.
     For example, "////Volumes/" will resolve to "/Volumes/" for validation purposes.
     """
-    resolved_uri = re.sub("/+", "/", uri).lower()
-    return any(
-        resolved_uri.startswith(x.lower())
-        for x in [
-            _DBFS_FUSE_PREFIX,
-            _DBFS_HDFS_URI_PREFIX,
-            _uc_volume_URI_PREFIX,
-            _uc_model_URI_PREFIX,
-            _UC_DBFS_SYMLINK_PREFIX,
-        ]
-    )
+    resolved_uri = _SLASHES_RE.sub("/", uri).lower()
+    # Use tuple for faster startswith and avoid list construction per call
+    return resolved_uri.startswith(_PREFIXES_LOWER)
 
 
 def _is_uc_volumes_path(path: str) -> bool:
