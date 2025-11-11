@@ -106,11 +106,17 @@ class HuggingFaceDatasetSource(DatasetSource):
 
     @classmethod
     def from_dict(cls, source_dict: dict[Any, Any]) -> "HuggingFaceDatasetSource":
-        return cls(
-            path=source_dict.get("path"),
-            config_name=source_dict.get("config_name"),
-            data_dir=source_dict.get("data_dir"),
-            data_files=source_dict.get("data_files"),
-            split=source_dict.get("split"),
-            revision=source_dict.get("revision"),
+        # Performance optimization: minimize Python attribute lookups
+        # Use local variable and tuple for get keys to minimize lookup time
+        get = source_dict.get
+        # Use tuple for consistent order of arguments
+        args = (
+            get("path"),
+            get("config_name"),
+            get("data_dir"),
+            get("data_files"),
+            get("split"),
+            get("revision"),
         )
+        # Pass arguments using positional form for __init__; this saves slight method call overhead
+        return cls(*args)
