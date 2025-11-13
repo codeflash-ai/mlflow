@@ -37,6 +37,8 @@ if TYPE_CHECKING:
     from mlflow.pyfunc.context import Context
     from mlflow.types.chat import ChatTool
 
+_IMMUTABLE_TAGS_SET = set(IMMUTABLE_TAGS)
+
 
 def capture_function_input_args(func, args, kwargs) -> dict[str, Any] | None:
     try:
@@ -125,7 +127,6 @@ def dump_span_attribute_value(value: Any) -> str:
     return json.dumps(value, cls=TraceJSONEncoder, ensure_ascii=False)
 
 
-@lru_cache(maxsize=1)
 def encode_span_id(span_id: int) -> str:
     """
     Encode the given integer span ID to a 16-byte hex string.
@@ -289,7 +290,10 @@ def maybe_get_logged_model_id() -> str | None:
 
 def exclude_immutable_tags(tags: dict[str, str]) -> dict[str, str]:
     """Exclude immutable tags e.g. "mlflow.user" from the given tags."""
-    return {k: v for k, v in tags.items() if k not in IMMUTABLE_TAGS}
+    # Use set subtraction for performance if tags is large
+    if not tags:
+        return {}
+    return {k: v for k, v in tags.items() if k not in _IMMUTABLE_TAGS_SET}
 
 
 def generate_mlflow_trace_id_from_otel_trace_id(otel_trace_id: int) -> str:
