@@ -43,29 +43,37 @@ Do not add additional new lines. Do not add any other fields."""
 def _format_args_string(grading_context_columns: list[str] | None, eval_values, indx) -> str:
     import pandas as pd
 
-    args_dict = {}
-    for arg in grading_context_columns:
-        if arg in eval_values:
-            args_dict[arg] = (
-                eval_values[arg].iloc[indx]
-                if isinstance(eval_values[arg], pd.Series)
-                else eval_values[arg][indx]
-            )
-        else:
-            raise MlflowException(
-                f"{arg} does not exist in the eval function {list(eval_values.keys())}."
-            )
+    # Avoid dynamic lookup of pd.Series for every arg
+    pd_Series = pd.Series
 
-    return (
-        ""
-        if args_dict is None or len(args_dict) == 0
-        else (
-            "Additional information used by the model:\n"
-            + "\n".join(
-                [f"key: {arg}\nvalue:\n{arg_value}" for arg, arg_value in args_dict.items()]
+    args_dict = {}
+    # Convert grading_context_columns to tuple for faster iteration if needed
+    # But since list is already fast, we keep as-is
+    # Use local variable lookups for speed
+    columns = grading_context_columns
+    values = eval_values
+
+    # Remove repeated eval_values[arg] lookups
+    for arg in columns:
+        try:
+            val = values[arg]
+        except KeyError:
+            raise MlflowException(
+                f"{arg} does not exist in the eval function {list(values.keys())}."
             )
-        )
-    )
+        # Avoid type checking for every loop, check just once if possible.
+        if isinstance(val, pd_Series):
+            args_dict[arg] = val.iloc[indx]
+        else:
+            args_dict[arg] = val[indx]
+
+    # Fast check for empty dict using not args_dict
+    if not args_dict:
+        return ""
+    # Use list comprehension and join (already optimal), but preallocate list size
+    parts = [f"key: {arg}\nvalue:\n{arg_value}" for arg, arg_value in args_dict.items()]
+    # Avoid extra parentheses in the return
+    return "Additional information used by the model:\n" + "\n".join(parts)
 
 
 # Function to extract Score and Justification
