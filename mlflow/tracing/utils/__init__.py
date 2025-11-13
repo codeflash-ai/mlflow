@@ -37,6 +37,8 @@ if TYPE_CHECKING:
     from mlflow.pyfunc.context import Context
     from mlflow.types.chat import ChatTool
 
+_IMMUTABLE_TAGS_SET = set(IMMUTABLE_TAGS)
+
 
 def capture_function_input_args(func, args, kwargs) -> dict[str, Any] | None:
     try:
@@ -289,7 +291,10 @@ def maybe_get_logged_model_id() -> str | None:
 
 def exclude_immutable_tags(tags: dict[str, str]) -> dict[str, str]:
     """Exclude immutable tags e.g. "mlflow.user" from the given tags."""
-    return {k: v for k, v in tags.items() if k not in IMMUTABLE_TAGS}
+    # Use set subtraction for performance if tags is large
+    if not tags:
+        return {}
+    return {k: v for k, v in tags.items() if k not in _IMMUTABLE_TAGS_SET}
 
 
 def generate_mlflow_trace_id_from_otel_trace_id(otel_trace_id: int) -> str:
@@ -316,7 +321,9 @@ def generate_trace_id_v4_from_otel_trace_id(otel_trace_id: int, location: str) -
     Returns:
         The MLflow trace ID string in format "trace:/<location>/<hex_trace_id>".
     """
-    return construct_trace_id_v4(location, encode_trace_id(otel_trace_id))
+    # Inline construct_trace_id_v4 to avoid function call overhead in this hotspot.
+    # The following produces: f"{TRACE_ID_V4_PREFIX}{location}/{trace_id}"
+    return f"{TRACE_ID_V4_PREFIX}{location}/{encode_trace_id(otel_trace_id)}"
 
 
 def generate_trace_id_v4(span: OTelSpan, location: str) -> str:
