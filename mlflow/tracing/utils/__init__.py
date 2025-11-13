@@ -37,6 +37,8 @@ if TYPE_CHECKING:
     from mlflow.pyfunc.context import Context
     from mlflow.types.chat import ChatTool
 
+_IMMUTABLE_TAGS_SET = set(IMMUTABLE_TAGS)
+
 
 def capture_function_input_args(func, args, kwargs) -> dict[str, Any] | None:
     try:
@@ -289,7 +291,10 @@ def maybe_get_logged_model_id() -> str | None:
 
 def exclude_immutable_tags(tags: dict[str, str]) -> dict[str, str]:
     """Exclude immutable tags e.g. "mlflow.user" from the given tags."""
-    return {k: v for k, v in tags.items() if k not in IMMUTABLE_TAGS}
+    # Use set subtraction for performance if tags is large
+    if not tags:
+        return {}
+    return {k: v for k, v in tags.items() if k not in _IMMUTABLE_TAGS_SET}
 
 
 def generate_mlflow_trace_id_from_otel_trace_id(otel_trace_id: int) -> str:
@@ -461,10 +466,9 @@ def _calculate_percentile(sorted_data: list[float], percentile: float) -> float:
     Returns:
         The percentile value
     """
-    if not sorted_data:
-        return 0.0
-
     n = len(sorted_data)
+    if n == 0:
+        return 0.0
     index = percentile * (n - 1)
     lower = int(index)
     upper = lower + 1
@@ -474,7 +478,9 @@ def _calculate_percentile(sorted_data: list[float], percentile: float) -> float:
 
     # Linear interpolation between two nearest values
     weight = index - lower
-    return sorted_data[lower] * (1 - weight) + sorted_data[upper] * weight
+    lower_value = sorted_data[lower]
+    upper_value = sorted_data[upper]
+    return lower_value + weight * (upper_value - lower_value)
 
 
 def add_size_stats_to_trace_metadata(trace: Trace):
