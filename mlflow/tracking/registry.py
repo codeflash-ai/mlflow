@@ -48,16 +48,13 @@ class StoreRegistry:
 
     def register_entrypoints(self):
         """Register tracking stores provided by other packages"""
+        _register = self.register
         for entrypoint in get_entry_points(self.group_name):
             try:
-                self.register(entrypoint.name, entrypoint.load())
+                _register(entrypoint.name, entrypoint.load())
             except (AttributeError, ImportError) as exc:
-                warnings.warn(
-                    'Failure attempting to register store for scheme "{}": {}'.format(
-                        entrypoint.name, str(exc)
-                    ),
-                    stacklevel=2,
-                )
+                msg = f'Failure attempting to register store for scheme "{entrypoint.name}": {exc}'
+                warnings.warn(msg, stacklevel=2)
 
     def get_store_builder(self, store_uri):
         """Get a store from the registry based on the scheme of store_uri
