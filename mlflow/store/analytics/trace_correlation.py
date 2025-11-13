@@ -159,15 +159,27 @@ def _calculate_npmi_core(
     log_n1 = math.log(n1)
     log_n2 = math.log(n2)
 
-    pmi = (log_n11 + log_N) - (log_n1 + log_n2)
+    # Compute pmi and denominator with minimal number of operations
+    log_n11_plus_log_N = log_n11 + log_N
+    log_n1_plus_log_n2 = log_n1 + log_n2
+    pmi = log_n11_plus_log_N - log_n1_plus_log_n2
 
-    # Normalize by -log(P(x,y)) to get NPMI
-    denominator = -(log_n11 - log_N)  # -log(n11/N)
+    denominator = log_N - log_n11  # -(log_n11 - log_N) == log_N - log_n11
+
+    # Defensive: avoid possible division by zero in rare numeric edge case
+    if denominator == 0:
+        return float("nan")
+
 
     npmi = pmi / denominator
 
-    # Clamp to [-1, 1] to handle floating point errors
-    return max(-1.0, min(1.0, npmi))
+    # Clamp to [-1, 1] exactly as original to handle floating point errors
+    if npmi > 1.0:
+        return 1.0
+    elif npmi < -1.0:
+        return -1.0
+    else:
+        return npmi
 
 
 def calculate_smoothed_npmi(
