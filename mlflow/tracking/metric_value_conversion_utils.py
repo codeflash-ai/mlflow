@@ -38,16 +38,29 @@ def convert_metric_value_to_float_if_possible(x) -> float:
     if x is None or type(x) == float:
         return x
 
-    converter_fns_to_try = [
-        convert_metric_value_to_float_if_ndarray,
-        convert_metric_value_to_float_if_tensorflow_tensor,
-        convert_metric_value_to_float_if_torch_tensor,
-    ]
+    # Inline the converter functions for faster dispatch by avoiding unnecessary looping and lookup; short-circuit on type
+    # Check numpy.ndarray first, then TensorFlow tensor, then Torch tensor
+    tx = type(x)
+    # Cache isinstance result to avoid multiple lookups
+    # numpy
+    if tx.__module__ == "numpy" and tx.__name__ == "ndarray":
 
-    for converter_fn in converter_fns_to_try:
-        possible_float = converter_fn(x)
-        if type(possible_float) == float:
-            return possible_float
+        # Direct float conversion via item
+        return float(_try_get_item(x))
+    # TensorFlow
+    if tx.__module__ == "tensorflow.python.framework.ops" and tx.__name__ == "Tensor":
+        try:
+            return float(x)
+        except Exception as e:
+            raise MlflowException(
+                f"Failed to convert metric value to float: {e!r}",
+                error_code=INVALID_PARAMETER_VALUE,
+            )
+    # torch
+    if tx.__module__ == "torch" and tx.__name__ == "Tensor":
+        extracted_tensor_val = x.detach().cpu()
+        return float(_try_get_item(extracted_tensor_val))
+
 
     try:
         return float(x)
@@ -89,5 +102,4 @@ def convert_metric_value_to_float_if_tensorflow_tensor(x):
                 f"Failed to convert metric value to float: {e!r}",
                 error_code=INVALID_PARAMETER_VALUE,
             )
-
     return x
