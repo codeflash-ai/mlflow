@@ -37,6 +37,8 @@ if TYPE_CHECKING:
     from mlflow.pyfunc.context import Context
     from mlflow.types.chat import ChatTool
 
+_IMMUTABLE_TAGS_SET = set(IMMUTABLE_TAGS)
+
 
 def capture_function_input_args(func, args, kwargs) -> dict[str, Any] | None:
     try:
@@ -166,14 +168,7 @@ def build_otel_context(trace_id: int, span_id: int) -> trace_api.SpanContext:
     """
     Build an OpenTelemetry SpanContext object from the given trace and span IDs.
     """
-    return trace_api.SpanContext(
-        trace_id=trace_id,
-        span_id=span_id,
-        # NB: This flag is OpenTelemetry's concept to indicate whether the context is
-        # propagated from remote parent or not. We don't support distributed tracing
-        # yet so always set it to False.
-        is_remote=False,
-    )
+    return trace_api.SpanContext(trace_id, span_id, False)
 
 
 def aggregate_usage_from_spans(spans: list[LiveSpan]) -> dict[str, int] | None:
@@ -289,7 +284,10 @@ def maybe_get_logged_model_id() -> str | None:
 
 def exclude_immutable_tags(tags: dict[str, str]) -> dict[str, str]:
     """Exclude immutable tags e.g. "mlflow.user" from the given tags."""
-    return {k: v for k, v in tags.items() if k not in IMMUTABLE_TAGS}
+    # Use set subtraction for performance if tags is large
+    if not tags:
+        return {}
+    return {k: v for k, v in tags.items() if k not in _IMMUTABLE_TAGS_SET}
 
 
 def generate_mlflow_trace_id_from_otel_trace_id(otel_trace_id: int) -> str:
