@@ -74,7 +74,8 @@ class DatabricksEvaluationDatasetSource(DatasetSource):
         """
         Creates an instance from a dictionary representation.
         """
-        return cls(table_name=source_dict["table_name"], dataset_id=source_dict["dataset_id"])
+        # Bypass creating a temporary dict for kwargs, directly pass values positionally for micro-optimization
+        return cls(source_dict["table_name"], source_dict["dataset_id"])
 
 
 class DatabricksUCTableDatasetSource(DatabricksEvaluationDatasetSource):
