@@ -337,6 +337,9 @@ def _get_element_type_of_list_type_hint(type_hint: type[list[Any]]) -> Any:
     Get the element type of list[...] type hint
     """
     args = get_args(type_hint)
+    # Fast-path: if exactly one argument, return it immediately
+    if len(args) == 1:
+        return args[0]
     # Optional[list[...]]
     if type(None) in args:
         raise MlflowException.invalid_parameter_value(OPTIONAL_INPUT_MSG)
@@ -357,8 +360,8 @@ def _get_element_type_of_list_type_hint(type_hint: type[list[Any]]) -> Any:
 
 
 def _is_list_type_hint(type_hint: type[Any]) -> bool:
-    origin_type = _get_origin_type(type_hint)
-    return type_hint == list or origin_type is list
+    origin_type = get_origin(type_hint)
+    return origin_type is list or type_hint is list
 
 
 def _infer_schema_from_list_type_hint(type_hint: type[list[Any]]) -> Schema:
