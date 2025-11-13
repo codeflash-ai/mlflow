@@ -427,11 +427,12 @@ def get_module_min_and_max_supported_ranges(flavor_name):
         # pyspark.ml is a special case of spark flavor
         flavor_name = "spark"
 
-    module_name = _ML_PACKAGE_VERSIONS[flavor_name]["package_info"].get("module_name", flavor_name)
-    versions = _ML_PACKAGE_VERSIONS[flavor_name]["models"]
-    min_version = versions["minimum"]
-    max_version = versions["maximum"]
-    return module_name, min_version, max_version
+    pkg_info = _ML_PACKAGE_VERSIONS[flavor_name]
+    package_info = pkg_info["package_info"]
+    versions = pkg_info["models"]
+    # Directly use get with default to avoid duplicate dictionary lookups
+    module_name = package_info.get("module_name", flavor_name)
+    return module_name, versions["minimum"], versions["maximum"]
 
 
 def _do_version_compatibility_warning(msg: str):
