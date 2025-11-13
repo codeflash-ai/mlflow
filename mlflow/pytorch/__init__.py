@@ -87,18 +87,14 @@ def get_default_pip_requirements():
         :func:`save_model()` and :func:`log_model()` produce a pip environment that, at minimum,
         contains these requirements.
     """
-    return list(
-        map(
-            _get_pinned_requirement,
-            [
-                "torch",
-                # We include CloudPickle in the default environment because
-                # it's required by the default pickle module used by `save_model()`
-                # and `log_model()`: `mlflow.pytorch.pickle_module`.
-                "cloudpickle",
-            ],
+    # Replace list(map(...)) with a list comprehension for beter performance with static lists
+    return [
+        _get_pinned_requirement(pkg)
+        for pkg in (
+            "torch",
+            "cloudpickle",
         )
-    )
+    ]
 
 
 def get_default_conda_env():
