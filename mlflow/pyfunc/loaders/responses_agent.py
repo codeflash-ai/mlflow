@@ -56,6 +56,9 @@ class _ResponsesAgentPyfuncWrapper:
     def _response_to_dict(self, response, pydantic_class) -> dict[str, Any]:
         if isinstance(response, pydantic_class):
             return response.model_dump(exclude_none=True)
+        # Short-circuit: if response is already a dict, do not validate
+        if isinstance(response, dict):
+            return response
         try:
             model_validate(pydantic_class, response)
         except pydantic.ValidationError as e:
