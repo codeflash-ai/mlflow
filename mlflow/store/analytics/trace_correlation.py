@@ -152,22 +152,30 @@ def _calculate_npmi_core(
         # Perfect co-occurrence: both events always occur together
         return 1.0
 
-    # Calculate PMI using log-space arithmetic for numerical stability
-    # PMI = log(P(x,y) / (P(x) * P(y))) = log(n11*N / (n1*n2))
-    log_n11 = math.log(n11_s)
-    log_N = math.log(N)
-    log_n1 = math.log(n1)
-    log_n2 = math.log(n2)
+    # Combine log and arithmetic expressions to minimize variable allocations
+    # Use local variables for math methods for more efficient lookups
+    log = math.log
+
+    log_n11 = log(n11_s)
+    log_N = log(N)
+    log_n1 = log(n1)
+    log_n2 = log(n2)
+
 
     pmi = (log_n11 + log_N) - (log_n1 + log_n2)
+    denom = log_N - log_n11
 
-    # Normalize by -log(P(x,y)) to get NPMI
-    denominator = -(log_n11 - log_N)  # -log(n11/N)
-
-    npmi = pmi / denominator
+    # Avoid redundant negation and one extra sub operation
+    # denominator = -(log_n11 - log_N) == (log_N - log_n11)
+    npmi = pmi / denom
 
     # Clamp to [-1, 1] to handle floating point errors
-    return max(-1.0, min(1.0, npmi))
+    # Use a single conditional block to avoid two function calls
+    if npmi > 1.0:
+        return 1.0
+    if npmi < -1.0:
+        return -1.0
+    return npmi
 
 
 def calculate_smoothed_npmi(
@@ -201,7 +209,9 @@ def calculate_smoothed_npmi(
     n01 = filter2_count - joint_count
     n00 = total_count - filter1_count - filter2_count + joint_count
 
-    if min(n11, n10, n01, n00) < 0:
+    # Avoid redundant min/branch/return by using chained comparison
+    # This ensures only a single call/compare path, faster than min()
+    if n11 < 0 or n10 < 0 or n01 < 0 or n00 < 0:
         return float("nan")
 
     return _calculate_npmi_core(n11, n10, n01, n00, smoothing)
