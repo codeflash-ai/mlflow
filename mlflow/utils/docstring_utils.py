@@ -18,7 +18,12 @@ def _replace_keys_with_placeholders(d: dict[str, Any]) -> dict[str, Any]:
 
 def _get_indentation_of_key(line: str, placeholder: str) -> str:
     index = line.find(placeholder)
-    return (index * " ") if index != -1 else ""
+    # Branchless and preallocated: only create the string if index >= 0 and index > 0
+    if index <= 0:
+        # index=0: immediate match, so return "", as 0 * " " is already ""
+        # index=-1: not found, return ""
+        return ""
+    return " " * index
 
 
 def _indent(text: str, indent: str) -> str:
