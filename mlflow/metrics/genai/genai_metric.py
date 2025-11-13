@@ -27,6 +27,7 @@ from mlflow.protos.databricks_pb2 import (
 )
 from mlflow.utils.class_utils import _get_class_from_string
 from mlflow.version import VERSION
+import numpy as np
 
 _logger = logging.getLogger(__name__)
 
@@ -165,33 +166,35 @@ def _score_model_on_payloads(
 
 def _get_aggregate_results(scores, aggregations):
     # loop over the aggregations and compute the aggregate results on the scores
-    def aggregate_function(aggregate_option, scores):
-        import numpy as np
-
-        options = {
-            "min": np.min,
-            "max": np.max,
-            "mean": np.mean,
-            "median": np.median,
-            "variance": np.var,
-            "p90": lambda x: np.percentile(x, 90) if x else None,
-        }
-
-        if aggregate_option not in options:
+    
+    # Move aggregate_function closure logic to top-level for efficiency
+    AGGREGATE_FUNCTIONS = {
+        "min": np.min,
+        "max": np.max,
+        "mean": np.mean,
+        "median": np.median,
+        "variance": np.var,
+        "p90": lambda x: np.percentile(x, 90) if x.size > 0 else None,
+    }
+    
+    def aggregate_function(aggregate_option: str, scores: np.ndarray):
+        if aggregate_option not in AGGREGATE_FUNCTIONS:
             raise MlflowException(
                 message=f"Invalid aggregate option {aggregate_option}.",
                 error_code=INVALID_PARAMETER_VALUE,
             )
+        return AGGREGATE_FUNCTIONS[aggregate_option](scores)
+    
+    if aggregations is None:
+        return {}
 
-        return options[aggregate_option](scores)
-
-    scores_for_aggregation = [score for score in scores if score is not None]
-
-    return (
-        {option: aggregate_function(option, scores_for_aggregation) for option in aggregations}
-        if aggregations is not None
-        else {}
-    )
+    # Filtering out None in one fast pass, converting at once for efficiency.
+    scores_for_aggregation = np.array([score for score in scores if score is not None])
+    
+    return {
+        option: aggregate_function(option, scores_for_aggregation)
+        for option in aggregations
+    }
 
 
 def make_genai_metric_from_prompt(
