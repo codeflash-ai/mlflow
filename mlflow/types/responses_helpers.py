@@ -3,6 +3,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
+_VALID_CHOICES = {"none", "auto", "required"}
+
 """
 Classes are inspired by classes for Response and ResponseStreamEvent in openai-python
 
@@ -203,12 +205,10 @@ class ToolChoice(BaseModel):
 
     @model_validator(mode="after")
     def check_tool_choice(self) -> "ToolChoice":
-        if (
-            self.tool_choice
-            and isinstance(self.tool_choice, str)
-            and self.tool_choice not in {"none", "auto", "required"}
-        ):
-            warnings.warn(f"Invalid tool choice: {self.tool_choice}")
+        tc = self.tool_choice
+        # Using local variable and comparing to a class-level constant set improves performance
+        if tc and isinstance(tc, str) and tc not in _VALID_CHOICES:
+            warnings.warn(f"Invalid tool choice: {tc}")
         return self
 
 
