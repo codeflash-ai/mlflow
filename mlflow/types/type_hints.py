@@ -23,6 +23,7 @@ from mlflow.types.schema import (
     Schema,
 )
 from mlflow.utils.warnings_utils import color_warning
+import numpy
 
 FIELD_TYPE = pydantic.fields.FieldInfo
 NONE_TYPE = type(None)
@@ -77,32 +78,27 @@ def type_hints_no_signature_inference():
     ..note::
         These types can not be used as nested types in other type hints.
     """
-    type_hints = ()
+    type_hints = []
     try:
         import pandas as pd
 
-        type_hints += (
+        type_hints.extend((
             pd.DataFrame,
             pd.Series,
-        )
+        ))
     except ImportError:
         pass
 
-    try:
-        import numpy as np
-
-        type_hints += (np.ndarray,)
-    except ImportError:
-        pass
+    type_hints.append(numpy.ndarray)
 
     try:
         from scipy.sparse import csc_matrix, csr_matrix
 
-        type_hints += (csc_matrix, csr_matrix)
+        type_hints.extend((csc_matrix, csr_matrix))
     except ImportError:
         pass
 
-    return type_hints
+    return tuple(type_hints)
 
 
 class ColSpecType(NamedTuple):
