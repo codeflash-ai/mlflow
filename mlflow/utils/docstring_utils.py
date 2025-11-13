@@ -152,10 +152,15 @@ def format_docstring(param_docs):
             p2: doc2
                 doc2 second line
     """
-    param_docs = ParamDocs(param_docs)
+    # Avoid double wrapping if already ParamDocs instance.
+    if type(param_docs) is not ParamDocs:
+        param_docs = ParamDocs(param_docs)
+
 
     def decorator(func):
-        func.__doc__ = param_docs.format_docstring(func.__doc__)
+        doc = func.__doc__
+        if doc is not None:
+            func.__doc__ = param_docs.format_docstring(doc)
         return func
 
     return decorator
