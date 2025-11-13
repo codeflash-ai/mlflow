@@ -38,8 +38,7 @@ class DatasetInput(_MlflowObject):
     @classmethod
     def from_proto(cls, proto):
         dataset_input = cls(Dataset.from_proto(proto.dataset))
-        for input_tag in proto.tags:
-            dataset_input._add_tag(InputTag.from_proto(input_tag))
+        dataset_input._tags.extend([InputTag.from_proto(input_tag) for input_tag in proto.tags])
         return dataset_input
 
     def to_dictionary(self):
