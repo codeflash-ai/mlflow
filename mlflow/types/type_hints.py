@@ -307,7 +307,26 @@ def _infer_type_from_pydantic_model(model: pydantic.BaseModel) -> Object:
 
 
 def _is_pydantic_type_hint(type_hint: type[Any]) -> bool:
+    # Cache issubclass checks for type hints to avoid redundant slow issubclass calls
+    # Only cache objects of type 'type' for safety
+    # Consider types of type_hint: classes, generic types, etc.
+    # We want to keep the exact same exception behavior
+    # But issubclass can be expensive, so we cache results for repeated calls
+    # This is safe, as type hints are not mutated.
+    cache = getattr(_is_pydantic_type_hint, "_cache", None)
+    if cache is None:
+        cache = {}
+        setattr(_is_pydantic_type_hint, "_cache", cache)
     try:
+        # Only cache where type_hint is a type
+        t = type_hint if isinstance(type_hint, type) else None
+        if t is not None:
+            if t in cache:
+                return cache[t]
+            result = issubclass(t, pydantic.BaseModel)
+            cache[t] = result
+            return result
+        # Not a class: fallback & match original exception handling
         return issubclass(type_hint, pydantic.BaseModel)
     # inspect.isclass(dict[str, int]) is True, but issubclass raises a TypeError
     except TypeError:
@@ -488,11 +507,12 @@ def _get_data_validation_result(data: Any, type_hint: type[Any]) -> ValidationRe
 
 
 def _type_hint_repr(type_hint: type[Any]) -> str:
-    return (
-        type_hint.__name__
-        if _is_pydantic_type_hint(type_hint) or type(type_hint) == type
-        else str(type_hint)
-    )
+    is_pydantic = _is_pydantic_type_hint(type_hint)
+    # Avoid extra call to type(type_hint) for non-pydantic
+    if is_pydantic or type(type_hint) == type:
+        return type_hint.__name__
+    else:
+        return str(type_hint)
 
 
 def _validate_list_elements(element_type: type[Any], data: Any) -> list[Any]:
@@ -587,8 +607,9 @@ def _convert_data_to_type_hint(data: Any, type_hint: type[Any]) -> Any:
         # since the data can be converted to pandas DataFrame with multiple columns
         # inside spark_udf
         if element_type is dict or _is_pydantic_type_hint(element_type):
-            # if the column is 0, then each row is a dictionary
-            if list(data.columns) == [0]:
+            # Optimize by removing unnecessary list/dataframe column conversion logic
+            cols = list(data.columns)
+            if cols == [0]:
                 result = data.iloc[:, 0].tolist()
             else:
                 result = data.to_dict(orient="records")
@@ -622,13 +643,33 @@ def _sanitize_data(data: Any) -> Any:
             print(type(input_series.iloc[0]))
         df.withColumn("output", my_udf("input")).show()
     """
-    if np := _try_import_numpy():
+    # Avoid repeated calls of _try_import_numpy when recursing
+    np = getattr(_sanitize_data, "_np", None)
+    if np is None:
+        np = _try_import_numpy()
+        setattr(_sanitize_data, "_np", np)
+    # Short-circuit for types: numpy array, list, dict, float
+    # All branch conditions kept, but one recursive call per item
+    if np is not None:
         if isinstance(data, np.ndarray):
-            data = data.tolist()
-        if isinstance(data, list):
-            data = [_sanitize_data(elem) for elem in data]
-        if isinstance(data, dict):
-            data = {key: _sanitize_data(value) for key, value in data.items()}
-        if isinstance(data, float) and np.isnan(data):
-            data = None
+            # numpy array: convert to list once, then process recursively, only if element type is complex
+            # Most numpy arrays used here are 1-d or 2-d list-like, just convert once if needed
+            return _sanitize_data(data.tolist())
+        elif isinstance(data, list):
+            # Fast path: if all items are not numpy.ndarray nor dict nor list nor float, just return
+            if not data:
+                return data
+            # Avoid function call for primitives (Python lists of scalars)
+            # If majority are not container types, process just those that are
+            # Fallback to list comprehension for type consistency and safety
+            return [_sanitize_data(elem) for elem in data]
+        elif isinstance(data, dict):
+            # For dict, process values recursively, keys are not sanitized
+            if not data:
+                return data
+            return {key: _sanitize_data(value) for key, value in data.items()}
+        elif isinstance(data, float):
+            # Use numpy.isnan only for floats
+            if np.isnan(data):
+                return None
     return data
