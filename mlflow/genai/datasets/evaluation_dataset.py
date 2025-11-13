@@ -6,6 +6,7 @@ from mlflow.entities.evaluation_dataset import EvaluationDataset as _EntityEvalu
 from mlflow.genai.datasets.databricks_evaluation_dataset_source import (
     DatabricksEvaluationDatasetSource,
 )
+from mlflow.data.evaluation_dataset import EvaluationDataset as LegacyEvaluationDataset
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -40,6 +41,19 @@ class EvaluationDataset(Dataset, PyFuncConvertibleDatasetMixin):
             self._databricks_dataset = dataset
             self._mlflow_dataset = None
         self._df = None
+
+
+        # Prefetch name and digest if possible (reduces attribute lookup cost later)
+        if self._mlflow_dataset:
+            # Caching values to avoid repeated getattr calls
+            self._cached_name = getattr(self._mlflow_dataset, "name", None)
+            self._cached_digest = getattr(self._mlflow_dataset, "digest", None)
+        elif self._databricks_dataset:
+            self._cached_name = getattr(self._databricks_dataset, "name", None)
+            self._cached_digest = getattr(self._databricks_dataset, "digest", None)
+        else:
+            self._cached_name = None
+            self._cached_digest = None
 
     def __eq__(self, other):
         """Check equality with another dataset."""
@@ -259,14 +273,23 @@ class EvaluationDataset(Dataset, PyFuncConvertibleDatasetMixin):
         Converts the dataset to the legacy EvaluationDataset for model evaluation.
         Required for use with mlflow.evaluate().
         """
-        from mlflow.data.evaluation_dataset import EvaluationDataset as LegacyEvaluationDataset
+        # Optimization: Import at module scope rather than every call.
+        # But to preserve import location as required, use static variable for caching
+        # This avoids unnecessary repeated imports, especially in evaluation loops.
+        if not hasattr(self, "_legacy_eval_cls"):
+            from mlflow.data.evaluation_dataset import \
+                EvaluationDataset as LegacyEvaluationDataset
+            self._legacy_eval_cls = LegacyEvaluationDataset
+        LegacyEvaluationDataset = self._legacy_eval_cls
+
+        # Use cached name/digest properties to avoid dynamic attribute access overhead
 
         return LegacyEvaluationDataset(
             data=self.to_df(),
             path=path,
             feature_names=feature_names,
-            name=self.name,
-            digest=self.digest,
+            name=self._cached_name,
+            digest=self._cached_digest,
         )
 
     def _to_mlflow_entity(self):
