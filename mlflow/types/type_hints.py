@@ -23,6 +23,7 @@ from mlflow.types.schema import (
     Schema,
 )
 from mlflow.utils.warnings_utils import color_warning
+import numpy
 
 FIELD_TYPE = pydantic.fields.FieldInfo
 NONE_TYPE = type(None)
@@ -150,14 +151,21 @@ def _convert_dataframe_to_example_format(data: Any, input_example: Any) -> Any:
         if isinstance(input_example, pd.DataFrame):
             return data
         if isinstance(input_example, pd.Series):
-            data = data.iloc[:, 0]
-            data.name = input_example.name
-            return data
+            col0 = data.iloc[:, 0]
+            col0.name = input_example.name
+            return col0
+
         if np.isscalar(input_example):
-            return data.iloc[0, 0]
+            # Optimized for direct access
+            # Equivalent to data.iloc[0, 0]
+            return data.iat[0, 0]
+
         if isinstance(input_example, dict):
-            if len(data) == 1:
-                return data.to_dict(orient="records")[0]
+            nrows = len(data)
+            if nrows == 1:
+                # Avoid expensive .to_dict(...)[0] by using .iloc[0] directly
+                # This returns a dict mapping col name -> value for the first row
+                return data.iloc[0].to_dict()
             else:
                 # This case shouldn't happen
                 _logger.warning("Cannot convert DataFrame to a single dictionary.")
@@ -165,7 +173,8 @@ def _convert_dataframe_to_example_format(data: Any, input_example: Any) -> Any:
         if isinstance(input_example, list):
             # list[scalar]
             if len(data.columns) == 1 and all(np.isscalar(x) for x in input_example):
-                return data.iloc[:, 0].tolist()
+                # Use .values to convert column without intermediate Series/list
+                return data.iloc[:, 0].values.tolist()
             else:
                 # NB: there are some cases that this doesn't work well, but it's the best we can do
                 # e.g. list of dictionaries with different keys
