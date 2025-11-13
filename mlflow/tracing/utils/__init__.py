@@ -37,6 +37,8 @@ if TYPE_CHECKING:
     from mlflow.pyfunc.context import Context
     from mlflow.types.chat import ChatTool
 
+_IMMUTABLE_TAGS_SET = set(IMMUTABLE_TAGS)
+
 
 def capture_function_input_args(func, args, kwargs) -> dict[str, Any] | None:
     try:
@@ -97,24 +99,18 @@ class TraceJSONEncoder(json.JSONEncoder):
 
     def _is_safe_to_encode_str(self, obj) -> bool:
         """Check if it's safe to encode the object as a string."""
-        try:
-            # These Llama Index objects are not safe to encode as string, because their __str__
-            # method consumes the stream and make it unusable.
-            # E.g. https://github.com/run-llama/llama_index/blob/54f2da61ba8a573284ab8336f2b2810d948c3877/llama-index-core/llama_index/core/base/response/schema.py#L120-L127
-            from llama_index.core.base.response.schema import (
-                AsyncStreamingResponse,
-                StreamingResponse,
-            )
-            from llama_index.core.chat_engine.types import StreamingAgentChatResponse
-
-            if isinstance(
-                obj,
-                (AsyncStreamingResponse, StreamingResponse, StreamingAgentChatResponse),
-            ):
-                return False
-        except ImportError:
-            pass
-
+        # Move import to class scope and cache type tuple to avoid redundant imports and tuple creation
+        if not hasattr(self, '_llama_types'):
+            try:
+                from llama_index.core.base.response.schema import (
+                    AsyncStreamingResponse, StreamingResponse)
+                from llama_index.core.chat_engine.types import \
+                    StreamingAgentChatResponse
+                self._llama_types = (AsyncStreamingResponse, StreamingResponse, StreamingAgentChatResponse)
+            except ImportError:
+                self._llama_types = ()
+        if self._llama_types and isinstance(obj, self._llama_types):  # tuple() is always False
+            return False
         return True
 
 
@@ -289,7 +285,10 @@ def maybe_get_logged_model_id() -> str | None:
 
 def exclude_immutable_tags(tags: dict[str, str]) -> dict[str, str]:
     """Exclude immutable tags e.g. "mlflow.user" from the given tags."""
-    return {k: v for k, v in tags.items() if k not in IMMUTABLE_TAGS}
+    # Use set subtraction for performance if tags is large
+    if not tags:
+        return {}
+    return {k: v for k, v in tags.items() if k not in _IMMUTABLE_TAGS_SET}
 
 
 def generate_mlflow_trace_id_from_otel_trace_id(otel_trace_id: int) -> str:
