@@ -1,3 +1,4 @@
+import copy
 import hashlib
 import importlib.metadata
 import logging
@@ -42,6 +43,12 @@ from mlflow.utils.requirements_utils import (
 )
 from mlflow.utils.timeout import MlflowTimeoutError, run_with_timeout
 from mlflow.version import VERSION
+
+_parsed_conda_header = yaml.safe_load("""\
+name: mlflow-env
+channels:
+  - conda-forge
+""")
 
 _logger = logging.getLogger(__name__)
 
@@ -257,7 +264,8 @@ def _mlflow_conda_env(
             )
             conda_deps.append("pip")
 
-    env = yaml.safe_load(_conda_header)
+    # Use cached parsed header, deepcopy to avoid mutation
+    env = copy.deepcopy(_parsed_conda_header)
     env["dependencies"] = [f"python={PYTHON_VERSION}"]
     env["dependencies"] += conda_deps
     env["dependencies"].append({"pip": pip_deps})
