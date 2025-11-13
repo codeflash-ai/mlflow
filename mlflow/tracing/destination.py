@@ -21,12 +21,19 @@ class UserTraceDestinationRegistry:
     def __init__(self):
         self._global_value = None
         self._context_local_value = ContextVar("mlflow_trace_destination", default=None)
+        self._cached_env_value: TraceLocationBase | None = None
+        self._env_checked: bool = False
 
     def get(self) -> TraceLocationBase | None:
         """First check the context-local value, then the global value."""
         if local_destination := self._context_local_value.get():
             return local_destination
-        return self._global_value or self._get_trace_location_from_env()
+        if self._global_value is not None:
+            return self._global_value
+        if not self._env_checked:
+            self._cached_env_value = self._get_trace_location_from_env()
+            self._env_checked = True
+        return self._cached_env_value
 
     def set(self, value, context_local: bool = False):
         if context_local:
